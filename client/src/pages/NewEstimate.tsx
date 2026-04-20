@@ -2,7 +2,7 @@ import { useRef, useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, ImageIcon, Copy, Check, Link2, Mail, MessageSquare, ExternalLink, Camera } from "lucide-react";
-import { COMPANY, MESSAGING, EPOXY_PAGE } from "../../../esticlose.config";
+import { COMPANY, MESSAGING, EPOXY_PAGE, ESTIMATE_PAGE } from "../../../esticlose.config";
 import cabinetColors from "../../../data/cabinetColors.json";
 
 type CabinetColor = { brand: string; code: string; name: string };
@@ -24,13 +24,7 @@ const SERVICE_TYPE_MAP: Record<string, string> = {
   "Cabinet Refinishing": "cabinet",
 };
 
-const DEFAULT_PRICES: Record<string, number> = {
-  Tub: 449,
-  Shower: 399,
-  "Soaking Tub/Jacuzzi": 699,
-  "Epoxy Flooring": 1499,
-  "Cabinet Refinishing": 2999,
-};
+const DEFAULT_PRICES = COMPANY.defaultPrices;
 
 const DURATIONS = ["3 Hours", "4 Hours", "5 Hours", "6 Hours", "Full Day"];
 
@@ -416,10 +410,10 @@ export default function NewEstimate() {
             )}
           </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label={((SERVICE_TYPE_MAP[service] || "bathtub") === "bathtub") ? "Silver Plan Price" : "Price"} required>
+            <Field label={((SERVICE_TYPE_MAP[service] || "bathtub") === "bathtub") ? `${ESTIMATE_PAGE.standardPackage.name} Plan Price` : "Price"} required>
               <input
                 type="number"
-                placeholder={((SERVICE_TYPE_MAP[service] || "bathtub") === "bathtub") ? "e.g. $349" : "e.g. $449"}
+                placeholder={`e.g. $${DEFAULT_PRICES[service] || 449}`}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 min={1}
@@ -428,10 +422,10 @@ export default function NewEstimate() {
               />
             </Field>
             {(SERVICE_TYPE_MAP[service] || "bathtub") === "bathtub" && (
-              <Field label="Gold Plan Price">
+              <Field label={`${ESTIMATE_PAGE.goldPackage.name} Plan Price`}>
                 <input
                   type="number"
-                  placeholder="e.g. $449"
+                  placeholder={`e.g. $${(DEFAULT_PRICES["Tub"] || 449) + 100}`}
                   value={transformationPrice}
                   onChange={(e) => setTransformationPrice(e.target.value)}
                   min={1}
@@ -475,7 +469,7 @@ export default function NewEstimate() {
                 <Field label="Maintenance Plan Upsell">
                   <input
                     type="number"
-                    placeholder="e.g. $199"
+                    placeholder={`e.g. $${COMPANY.epoxyMaintenancePlanPrice}`}
                     value={maintenancePlanPrice}
                     onChange={(e) => setMaintenancePlanPrice(e.target.value)}
                     min={1}
@@ -485,7 +479,7 @@ export default function NewEstimate() {
                 <Field label="UV Clear Coat Upsell">
                   <input
                     type="number"
-                    placeholder="e.g. $349"
+                    placeholder={`e.g. $${COMPANY.epoxyUvClearCoatPrice}`}
                     value={uvClearCoatPrice}
                     onChange={(e) => setUvClearCoatPrice(e.target.value)}
                     min={1}
@@ -554,7 +548,7 @@ export default function NewEstimate() {
               <Field label="Bathroom Sink Upsell">
                 <input
                   type="number"
-                  placeholder="e.g. $75"
+                  placeholder={`e.g. $${COMPANY.bathroomSinkPrice}`}
                   value={bathroomSinkPrice}
                   onChange={(e) => setBathroomSinkPrice(e.target.value)}
                   min={1}
@@ -564,7 +558,7 @@ export default function NewEstimate() {
               <Field label="Kitchen Sink Upsell">
                 <input
                   type="number"
-                  placeholder="e.g. $95"
+                  placeholder={`e.g. $${COMPANY.kitchenSinkPrice}`}
                   value={kitchenSinkPrice}
                   onChange={(e) => setKitchenSinkPrice(e.target.value)}
                   min={1}

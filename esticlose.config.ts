@@ -17,6 +17,14 @@ export const COMPANY = {
   kitchenSinkPrice: 399,
   epoxyMaintenancePlanPrice: 199,
   epoxyUvClearCoatPrice: 349,
+  /** Default prices per service (used as form defaults in New Estimate) */
+  defaultPrices: {
+    Tub: 449,
+    Shower: 399,
+    "Soaking Tub/Jacuzzi": 699,
+    "Epoxy Flooring": 1499,
+    "Cabinet Refinishing": 2999,
+  } as Record<string, number>,
 };
 
 export const ESTIMATE_PAGE = {
