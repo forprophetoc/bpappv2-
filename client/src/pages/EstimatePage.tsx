@@ -752,7 +752,18 @@ function EstimateView({
             </h2>
             <p className="text-green-100 text-xs mt-0.5">Select a date and time that works for you</p>
           </div>
-          <SimulatedBookingCalendar firstName={firstName} isEpoxy={isEpoxy} />
+          {COMPANY.bookingLink ? (
+            <iframe
+              src={COMPANY.bookingLink}
+              className="w-full border-0"
+              style={{ minHeight: "600px" }}
+              title="Book an appointment"
+            />
+          ) : (
+            <div className="bg-white p-8 text-center text-gray-400 text-sm">
+              Booking calendar not configured
+            </div>
+          )}
         </div>
       </section>
 
@@ -806,155 +817,3 @@ function BookingButton() {
   );
 }
 
-function generateSlots(date: Date, isEpoxy: boolean): { time: string; booked: boolean }[] {
-  const seed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
-  if (isEpoxy) {
-    // Epoxy = 1 job per day (full day block), show as single AM slot
-    const hash = ((seed * 31) % 100);
-    return [{ time: "Full Day (48 hrs)", booked: hash < 40 }];
-  }
-  const slots = ["9:00 AM", "11:00 AM", "1:30 PM"];
-  return slots.map((time, i) => {
-    const hash = ((seed * 31 + i * 17) % 100);
-    return { time, booked: hash < 40 };
-  });
-}
-
-function SimulatedBookingCalendar({ firstName, isEpoxy }: { firstName: string; isEpoxy: boolean }) {
-  const today = new Date();
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [selectedDay, setSelectedDay] = useState<number>(0);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
-
-  const weekStart = useMemo(() => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + 1 + weekOffset * 7); // start from tomorrow
-    return d;
-  }, [weekOffset]);
-
-  const days = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      return d;
-    });
-  }, [weekStart]);
-
-  const slots = useMemo(() => generateSlots(days[selectedDay], isEpoxy), [days, selectedDay, isEpoxy]);
-
-  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-  const selectedDate = days[selectedDay];
-  const dateLabel = `${dayLabels[selectedDate.getDay()]}, ${monthNames[selectedDate.getMonth()]} ${selectedDate.getDate()}`;
-
-  if (confirmed) {
-    return (
-      <div className="bg-white p-6 text-center">
-        <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-          <CheckCircle className="h-8 w-8 text-green-600" />
-        </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-1">You're Booked!</h3>
-        <p className="text-sm text-gray-600 mb-1">
-          {firstName}, your appointment is confirmed for:
-        </p>
-        <p className="text-base font-semibold text-gray-900">
-          {dateLabel} at {selectedSlot}
-        </p>
-        <p className="text-xs text-gray-400 mt-3">
-          We'll send a confirmation and reminder before your appointment.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white">
-      {/* Week navigation */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <button
-          onClick={() => { setWeekOffset((w) => Math.max(0, w - 1)); setSelectedDay(0); setSelectedSlot(null); }}
-          disabled={weekOffset === 0}
-          className="text-sm font-medium text-gray-500 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed px-2 py-1"
-        >
-          &larr; Prev
-        </button>
-        <p className="text-sm font-semibold text-gray-800">
-          {monthNames[days[0].getMonth()]} {days[0].getDate()} — {monthNames[days[4].getMonth()]} {days[4].getDate()}
-        </p>
-        <button
-          onClick={() => { setWeekOffset((w) => Math.min(3, w + 1)); setSelectedDay(0); setSelectedSlot(null); }}
-          disabled={weekOffset >= 3}
-          className="text-sm font-medium text-gray-500 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed px-2 py-1"
-        >
-          Next &rarr;
-        </button>
-      </div>
-
-      {/* Day selector */}
-      <div className="grid grid-cols-5 gap-1 px-3 py-3 border-b border-gray-100">
-        {days.map((d, i) => {
-          const daySlots = generateSlots(d, isEpoxy);
-          const available = daySlots.filter((s) => !s.booked).length;
-          return (
-            <button
-              key={i}
-              onClick={() => { setSelectedDay(i); setSelectedSlot(null); }}
-              className={`flex flex-col items-center py-2 rounded-lg text-center transition-all ${
-                selectedDay === i
-                  ? "bg-blue-600 text-white"
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <span className="text-[10px] font-medium uppercase">
-                {dayLabels[d.getDay()]}
-              </span>
-              <span className="text-lg font-bold">{d.getDate()}</span>
-              <span className={`text-[10px] ${selectedDay === i ? "text-blue-200" : available <= 2 ? "text-red-500 font-semibold" : "text-gray-400"}`}>
-                {available === 0 ? "Full" : `${available} open`}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Time slots */}
-      <div className="px-4 py-3">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-          {dateLabel} — Available Times
-        </p>
-        <div className={`grid gap-2 ${isEpoxy ? "grid-cols-1" : "grid-cols-3"}`}>
-          {slots.map((slot) => (
-            <button
-              key={slot.time}
-              disabled={slot.booked}
-              onClick={() => setSelectedSlot(slot.time)}
-              className={`py-2.5 rounded-lg text-sm font-medium transition-all ${
-                slot.booked
-                  ? "bg-gray-100 text-gray-300 cursor-not-allowed line-through"
-                  : selectedSlot === slot.time
-                  ? "bg-blue-600 text-white ring-2 ring-blue-600/20"
-                  : "bg-white border border-gray-200 text-gray-700 hover:border-blue-400 hover:bg-blue-50"
-              }`}
-            >
-              {slot.time}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Confirm button */}
-      {selectedSlot && (
-        <div className="px-4 pb-4">
-          <button
-            onClick={() => setConfirmed(true)}
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-xl text-base transition-colors shadow-sm"
-          >
-            Confirm — {dateLabel} at {selectedSlot}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}

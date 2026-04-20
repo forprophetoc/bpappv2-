@@ -6,21 +6,21 @@
  */
 
 export const COMPANY = {
-  name: "ABC Bathtub Refinishing",
-  phone: "239-555-0199",
-  phoneDisplay: "239-555-0199",
-  logoUrl: "",
-  bookingLink: "",
-  supportEmail: "info@abcbathtub.com",
+  name: "Bathtub Pros",
+  phone: "(239) 307-7945",
+  phoneDisplay: "(239) 307-7945",
+  logoUrl: "https://lirp.cdn-website.com/fa4035d5/dms3rep/multi/opt/original-logos-small-640w.jpg",
+  bookingLink: "https://api.leadconnectorhq.com/widget/booking/Ie1eUTKuBkr3kxbRoKRy",
+  supportEmail: "info@bathtubpros.com",
   serviceArea: "Southwest Florida",
-  bathroomSinkPrice: 299,
-  kitchenSinkPrice: 399,
+  bathroomSinkPrice: 225,
+  kitchenSinkPrice: 225,
   epoxyMaintenancePlanPrice: 199,
   epoxyUvClearCoatPrice: 349,
   /** Default prices per service (used as form defaults in New Estimate) */
   defaultPrices: {
-    Tub: 449,
-    Shower: 399,
+    Tub: 299,
+    Shower: 299,
     "Soaking Tub/Jacuzzi": 699,
     "Epoxy Flooring": 1499,
     "Cabinet Refinishing": 2999,
@@ -29,8 +29,8 @@ export const COMPANY = {
 
 export const ESTIMATE_PAGE = {
   /** Header bar */
-  headerBadge: "ABC",
-  headerTitle: "ABC Bathtub Refinishing",
+  headerBadge: "BP",
+  headerTitle: "Bathtub Pros",
 
   /** Trust strip — short proof points shown below the header */
   trustStrip: [
@@ -45,13 +45,12 @@ export const ESTIMATE_PAGE = {
 
   /** Green callout — what YOUR company does right */
   greenCallout: {
-    heading: "The ABC Way",
+    heading: "What You Get With Us",
     items: [
-      "Step 1 — Bonding Agent: Chemically bonds to surface",
-      "Step 2 — Primer: Creates stable base layer (most skip this)",
-      "Step 3 — Professional Topcoat: Durable, glossy, like-new finish",
-      "Full 3-coat system = lasts 10-15 years",
-      "Limited lifetime warranty",
+      "All-inclusive refinishing system",
+      "Proper prep for long-term adhesion",
+      "No hidden fees",
+      "Durable, glossy finish",
     ],
   },
 
@@ -59,75 +58,70 @@ export const ESTIMATE_PAGE = {
   redCallout: {
     heading: "Most Other Companies...",
     items: [
-      "Bonding agent only — no primer",
-      "Single topcoat over unstable surface",
-      "Looks fine 1-2 years, then peels",
-      "No warranty, or one they won't honor",
-      "You end up paying twice",
+      "Charge extra for chip repair and non-slip",
+      "Use lower-quality coatings",
+      "Rushed prep leads to peeling",
+      "Hidden fees after the quote",
     ],
   },
 
   /** Package labels */
   standardPackage: {
-    name: "Silver",
-    title: "Silver Plan",
-    warrantyLabel: "3-Year Warranty",
+    name: "Standard",
+    title: "Standard Package",
+    warrantyLabel: "Three Year No Peel Warranty",
     features: [
       {
-        title: "3-Year Warranty",
+        title: "Professional Bathtub Refinishing",
+        desc: "Complete refinishing with deep cleaning and surface prep.",
+      },
+      {
+        title: "Clean, Glossy White Finish",
+        desc: "Like-new appearance with a durable, glossy coating.",
+      },
+      {
+        title: "Three Year No Peel Warranty",
         desc: "Solid coverage backed by the same team that's been doing this since 2013.",
-      },
-      {
-        title: "Budget-Friendly Option",
-        desc: "Professional refinishing at a price that makes sense for your bottom line.",
-      },
-      {
-        title: "Great for Flippers, Rentals & Commercial Properties",
-        desc: "The go-to choice for investors, property managers, and landlords who need quality without overspending.",
-      },
-      {
-        title: "Same Great Service Since 2013",
-        desc: "Same professional crew, same proven process — just a leaner package for projects that don't need the extras.",
       },
     ],
   },
 
   goldPackage: {
     name: "Gold",
-    title: "Gold Plan",
+    title: "Gold Package",
     subtitle: "Our most complete package — built for homeowners who want it done right the first time.",
     badge: "Recommended",
     features: [
       {
-        title: "Limited Lifetime No-Peel Warranty",
+        title: "Everything in Standard Package",
+        desc: "All the same professional refinishing, prep, and glossy finish.",
+      },
+      {
+        title: "Premium Coating System",
+        desc: "Enhanced durability with an epoxy primer for ultimate adhesion.",
+      },
+      {
+        title: "Extended Finish Life",
+        desc: "Built to last longer, especially in high-use and coastal environments.",
+      },
+      {
+        title: "Best for Beach Communities",
+        desc: "Designed to hold up in high-humidity, salt-air environments.",
+      },
+      {
+        title: "Chip Repair & Anti-Slip Included",
+        desc: "We repair chips and add safety texture — no extra charge.",
+      },
+      {
+        title: "Limited Lifetime No Peel Warranty",
         desc: "The strongest warranty we offer — your finish is protected for as long as you own the home.",
-      },
-      {
-        title: "Professional Chip Repair Included",
-        desc: "We repair chips, cracks, and surface damage before refinishing so the result is smooth and flawless.",
-      },
-      {
-        title: "Anti-Slip Protection Included",
-        desc: "Added safety texture applied during the refinishing process — no extra charge.",
-      },
-      {
-        title: "Old Caulking Removed & Fresh Caulking Applied",
-        desc: "We strip out the old caulk and apply a clean, professional seal for a watertight finish.",
-      },
-      {
-        title: "Best Fit for Homeowners & Long-Term Residents",
-        desc: "Designed for people who plan to stay — the right investment for your primary home.",
-      },
-      {
-        title: "Ideal for Beachfront & Coastal Communities",
-        desc: "Built to hold up in high-humidity, salt-air environments where cheaper finishes fail fast.",
       },
     ],
   },
 
   /** Benefits grid */
   benefits: [
-    { label: "5-Year Warranty", sub: "Every job covered" },
+    { label: "Warranty Included", sub: "Every job covered" },
     { label: "Same-Day Done", sub: "In & out in one visit" },
     { label: "Save Thousands", sub: "vs. full replacement" },
     { label: "Local Experts", sub: COMPANY.serviceArea },
@@ -162,7 +156,7 @@ export const ESTIMATE_PAGE = {
 
   /** Footer promo line */
   footerPromo:
-    "5-Year Warranty - No mess, no demo - Same-day completion - 10% off for veterans & first responders",
+    "No mess, no demo - Same-day completion - 10% off for veterans & first responders",
 };
 
 export const EPOXY_PAGE = {
@@ -232,8 +226,8 @@ export const EPOXY_PAGE = {
     },
   ],
 
-  headerBadge: "ABC",
-  headerTitle: "ABC Epoxy",
+  headerBadge: "BP",
+  headerTitle: "Bathtub Pros Epoxy",
 };
 
 export const CABINET_PAGE = {
@@ -287,8 +281,8 @@ export const CABINET_PAGE = {
     },
   ],
 
-  headerBadge: "ABC",
-  headerTitle: "ABC Cabinet Refinishing",
+  headerBadge: "BP",
+  headerTitle: "Bathtub Pros Cabinet Refinishing",
 };
 
 /**
