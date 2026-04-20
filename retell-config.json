@@ -1,0 +1,174 @@
+{
+  "agent": {
+    "agent_name": "Profit - EstiClose Onboarding",
+    "voice_id": null,
+    "language": "en-US",
+    "voice_speed": 1.0,
+    "voice_temperature": 0.4,
+    "responsiveness": 0.7,
+    "interruption_sensitivity": 0.6,
+    "enable_backchannel": true,
+    "backchannel_frequency": 0.4,
+    "reminder_trigger_ms": 8000,
+    "reminder_max_count": 2,
+    "max_call_duration_ms": 1200000,
+    "enable_voicemail_detection": true,
+    "voicemail_message": "Hi Mike, this is Profit from EstiClose. I'm calling to get you onboarded. Give us a call back at 239-398-9552 or we'll try you again soon.",
+    "end_call_after_silence_ms": 15000,
+    "opt_out_sensitive_data_storage": false,
+    "enable_call_recording": true,
+    "pronunciation_dictionary": [
+      {
+        "word": "Profit",
+        "pronunciation": "PROF-it",
+        "phonetic": "ˈprɒfɪt"
+      },
+      {
+        "word": "EstiClose",
+        "pronunciation": "ES-ti-close",
+        "phonetic": "ˈɛstɪkloʊz"
+      }
+    ],
+    "llm_model": "claude-sonnet-4-20250514",
+    "llm_temperature": 0.3
+  },
+
+  "webhook_pre_call": {
+    "url": "http://localhost:3000/api/retell/pre-call",
+    "description": "Receives inbound call event, returns contractor data for personalization.",
+    "expected_payload": {
+      "call_id": "string",
+      "from_number": "string",
+      "to_number": "string"
+    },
+    "expected_response": {
+      "dynamic_variables": {
+        "contractor_first_name": "string",
+        "business_name": "string",
+        "phone_number": "string",
+        "email": "string"
+      }
+    }
+  },
+
+  "webhook_post_call": {
+    "url": "http://localhost:3000/api/retell/post-call",
+    "description": "Captures call outcomes and extracted data after call ends.",
+    "expected_payload": {
+      "call_id": "string",
+      "call_duration_ms": "number",
+      "call_recording_url": "string",
+      "call_transcript": "string",
+      "extracted_data": {
+        "fallback_phone_number": "string | null",
+        "verbal_terms_agreement": "boolean",
+        "form_sent": "boolean",
+        "call_outcome": "completed | rescheduled | declined | voicemail | abandoned"
+      }
+    }
+  },
+
+  "custom_functions": [
+    {
+      "name": "send_onboarding_form",
+      "description": "Sends the onboarding form to the contractor via SMS and email. Called during Step 4 of the call flow after verbal terms agreement is obtained.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "phone_number": {
+            "type": "string",
+            "description": "Contractor's phone number to send SMS form link"
+          },
+          "email": {
+            "type": "string",
+            "description": "Contractor's email to send form link"
+          },
+          "contractor_first_name": {
+            "type": "string",
+            "description": "Contractor's first name for form personalization"
+          },
+          "business_name": {
+            "type": "string",
+            "description": "Business name for form personalization"
+          }
+        },
+        "required": ["phone_number", "email", "contractor_first_name"]
+      },
+      "speak_during_execution": "Sending that over to you right now.",
+      "speak_on_success": "",
+      "speak_on_failure": "Hmm, looks like there was a hiccup sending that. No worries — I'll make sure our team gets it to you at {{email}} right after this call.",
+      "execution_timeout_ms": 10000,
+      "url": "http://localhost:3000/api/retell/send-form"
+    },
+    {
+      "name": "capture_fallback_phone",
+      "description": "Stores the contractor's fallback phone number after verbal confirmation. Called during Step 5.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "description": "The current call ID"
+          },
+          "fallback_phone_number": {
+            "type": "string",
+            "description": "The backup phone number provided by the contractor"
+          }
+        },
+        "required": ["fallback_phone_number"]
+      },
+      "speak_during_execution": "",
+      "speak_on_success": "",
+      "speak_on_failure": "",
+      "execution_timeout_ms": 5000,
+      "url": "http://localhost:3000/api/retell/capture-fallback"
+    },
+    {
+      "name": "schedule_callback",
+      "description": "Schedules a callback when the contractor is not available. Called during Step 1 if contractor declines.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "phone_number": {
+            "type": "string",
+            "description": "Contractor's phone number"
+          },
+          "preferred_time": {
+            "type": "string",
+            "description": "When the contractor wants to be called back, as stated by them"
+          },
+          "contractor_first_name": {
+            "type": "string",
+            "description": "Contractor's first name"
+          }
+        },
+        "required": ["phone_number", "preferred_time", "contractor_first_name"]
+      },
+      "speak_during_execution": "",
+      "speak_on_success": "",
+      "speak_on_failure": "",
+      "execution_timeout_ms": 5000,
+      "url": "http://localhost:3000/api/retell/schedule-callback"
+    }
+  ],
+
+  "post_call_extraction": {
+    "fallback_phone_number": {
+      "type": "string",
+      "description": "The backup phone number the contractor provided during the call"
+    },
+    "verbal_terms_agreement": {
+      "type": "boolean",
+      "description": "Whether the contractor verbally agreed to the terms in Step 3"
+    },
+    "form_sent": {
+      "type": "boolean",
+      "description": "Whether the onboarding form was successfully sent during the call"
+    },
+    "call_outcome": {
+      "type": "string",
+      "enum": ["completed", "rescheduled", "declined", "voicemail", "abandoned"],
+      "description": "The final outcome of the call"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp /c/Users/test/Desktop/BP/bathtubapp_export/bathtubappv2/client/index.html /c/Users/test/Desktop/EstiClose/client/index.html)",
+      "Bash(cp /c/Users/test/Desktop/BP/bathtubapp_export/bathtubappv2/client/src/main.tsx /c/Users/test/Desktop/EstiClose/client/src/main.tsx)",
+      "Bash(cp /c/Users/test/Desktop/BP/bathtubapp_export/bathtubappv2/client/src/App.tsx /c/Users/test/Desktop/EstiClose/client/src/App.tsx)",
+      "Bash(cp /c/Users/test/Desktop/BP/bathtubapp_export/bathtubappv2/client/src/index.css /c/Users/test/Desktop/EstiClose/client/src/index.css)",
+      "Bash(cp /c/Users/test/Desktop/BP/bathtubapp_export/bathtubappv2/client/src/lib/trpc.ts /c/Users/test/Desktop/EstiClose/client/src/lib/trpc.ts)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(curl:*)",
+      "Bash(cp /c/Users/test/Desktop/BP/bathtubapp_export/bathtubappv2/client/src/components/ui/button.tsx /c/Users/test/Desktop/EstiClose/client/src/components/ui/button.tsx)",
+      "Bash(cp /c/Users/test/Desktop/BP/bathtubapp_export/bathtubappv2/client/src/components/ui/card.tsx /c/Users/test/Desktop/EstiClose/client/src/components/ui/card.tsx)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(npx tsc:*)",
+      "Bash(ipconfig)",
+      "Bash(node -e ':*)",
+      "Bash(netstat -ano)",
+      "Bash(netsh advfirewall:*)",
+      "Bash(powershell:*)",
+      "Bash(render --version)",
+      "Bash(gh repo:*)",
+      "Bash(gh auth:*)",
+      "Bash(git --version)",
+      "Bash(where gh:*)",
+      "Bash(where render:*)",
+      "Bash(git credential-manager:*)",
+      "Bash(python3 -c \"import sys,json; [print\\(r['name']\\) for r in json.loads\\(sys.stdin.read\\(\\)\\)]\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{JSON.parse\\(d\\).forEach\\(r=>console.log\\(r.name\\)\\)}\\)\")",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
