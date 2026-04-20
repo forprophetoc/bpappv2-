@@ -77,6 +77,8 @@ function ensureSchema(sqlite: InstanceType<typeof Database>) {
     "softCloseHingeUpgrade integer",
     "hardwareReplacement integer",
     "hardwareUpgrade integer",
+    // Strip fee
+    "stripFee integer",
   ];
   for (const col of columns) {
     try {
