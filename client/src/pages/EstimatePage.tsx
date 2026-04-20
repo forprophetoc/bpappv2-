@@ -6,7 +6,6 @@ import {
   Phone,
   Calendar,
   CheckCircle,
-  XCircle,
   Star,
   ShieldCheck,
   Clock,
@@ -15,12 +14,13 @@ import {
 } from "lucide-react";
 import { COMPANY, ESTIMATE_PAGE, EPOXY_PAGE, CABINET_PAGE } from "../../../esticlose.config";
 
-type ServiceType = "bathtub" | "shower" | "jacuzzi" | "epoxy" | "cabinet";
+type ServiceType = "bathtub" | "shower" | "jacuzzi" | "tub_tile" | "epoxy" | "cabinet";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
   bathtub: "Tub Refinishing",
   shower: "Shower Refinishing",
   jacuzzi: "Jacuzzi / Soaking Tub Refinishing",
+  tub_tile: "Tub & Tile Refinishing",
   epoxy: "Epoxy Flooring",
   cabinet: "Cabinet Refinishing",
 };
@@ -95,6 +95,7 @@ function EstimateView({
     softCloseHingeUpgrade: number | null;
     hardwareReplacement: number | null;
     hardwareUpgrade: number | null;
+    stripFee: number | null;
     bookingLink: string | null;
     calendarEmbed: string | null;
     email: string | null;
@@ -104,7 +105,7 @@ function EstimateView({
 }) {
   const firstName = deriveFirstName(estimate);
   const serviceType = (estimate.serviceType || "bathtub") as ServiceType;
-  const isBathtub = serviceType === "bathtub";
+  const isBathtub = serviceType === "bathtub" || serviceType === "tub_tile";
   const isEpoxy = serviceType === "epoxy";
   const isCabinet = serviceType === "cabinet";
 
@@ -174,6 +175,10 @@ function EstimateView({
       total += estimate.hardwareUpgrade;
     }
 
+    if (estimate.stripFee) {
+      total += estimate.stripFee;
+    }
+
     return total;
   }, [estimate, selectedPackage, selectedSinks, selectedEpoxyUpsells, selectedCabinetUpsells, isBathtub]);
 
@@ -196,12 +201,18 @@ function EstimateView({
 
       {/* ── HEADER ── */}
       <header className="bg-gray-900 text-white py-3 px-4 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="bg-blue-600 text-white font-bold text-sm px-2 py-1 rounded">
-            {isCabinet ? CABINET_PAGE.headerBadge : isEpoxy ? EPOXY_PAGE.headerBadge : ESTIMATE_PAGE.headerBadge}
-          </div>
-          <span className="font-semibold text-sm">{isCabinet ? CABINET_PAGE.headerTitle : isEpoxy ? EPOXY_PAGE.headerTitle : ESTIMATE_PAGE.headerTitle}</span>
-        </div>
+        <a href={COMPANY.websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+          {COMPANY.logoUrl ? (
+            <img src={COMPANY.logoUrl} alt={COMPANY.name} className="h-8 rounded" />
+          ) : (
+            <>
+              <div className="bg-blue-600 text-white font-bold text-sm px-2 py-1 rounded">
+                {isCabinet ? CABINET_PAGE.headerBadge : isEpoxy ? EPOXY_PAGE.headerBadge : ESTIMATE_PAGE.headerBadge}
+              </div>
+              <span className="font-semibold text-sm">{isCabinet ? CABINET_PAGE.headerTitle : isEpoxy ? EPOXY_PAGE.headerTitle : ESTIMATE_PAGE.headerTitle}</span>
+            </>
+          )}
+        </a>
         <a
           href={`tel:${COMPANY.phone}`}
           className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-full flex items-center gap-1 transition-colors"
@@ -227,9 +238,9 @@ function EstimateView({
           Your Personalized Estimate
         </p>
         <h1 className="text-[22px] sm:text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight mb-2">
-          {firstName}, Here's Your
+          {firstName}, Here's What Your Tub Will Look Like
           <br />
-          <span className="text-blue-600">{serviceLabel} Quote</span>
+          <span className="text-blue-600">— And Your Price</span>
         </h1>
         <p className="text-gray-500 text-sm leading-relaxed">
           {isCabinet ? CABINET_PAGE.heroSubtitle : isEpoxy ? EPOXY_PAGE.heroSubtitle : ESTIMATE_PAGE.heroSubtitle}
@@ -304,11 +315,10 @@ function EstimateView({
 
       </section>
 
-      {/* ── SECTION 2: Why It Matters (Green / Red callouts) ── */}
+      {/* ── SECTION 2: Why It Matters (Green callout) ── */}
       <section className="px-4 py-5">
         {(() => {
           const green = isCabinet ? CABINET_PAGE.greenCallout : isEpoxy ? EPOXY_PAGE.greenCallout : ESTIMATE_PAGE.greenCallout;
-          const red = isCabinet ? CABINET_PAGE.redCallout : isEpoxy ? EPOXY_PAGE.redCallout : ESTIMATE_PAGE.redCallout;
           const heading = isCabinet
             ? "Why It Matters — Not All Cabinet Work Is Equal"
             : isEpoxy
@@ -327,20 +337,6 @@ function EstimateView({
                 {green.items.map((item) => (
                   <p key={item} className="text-[13px] leading-snug text-green-800 flex items-start gap-1.5 mb-1.5">
                     <CheckCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-green-600" />
-                    {item}
-                  </p>
-                ))}
-              </div>
-
-              <div className="border-t border-gray-200" />
-
-              <div className="p-4 bg-red-50">
-                <p className="text-red-700 font-semibold text-sm mb-2 flex items-center gap-1.5">
-                  <XCircle className="h-4 w-4 shrink-0" /> {red.heading}
-                </p>
-                {red.items.map((item) => (
-                  <p key={item} className="text-[13px] leading-snug text-red-800 flex items-start gap-1.5 mb-1.5">
-                    <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-500" />
                     {item}
                   </p>
                 ))}
@@ -418,6 +414,9 @@ function EstimateView({
                 <h3 className="text-base font-bold text-gray-900 mb-1">
                   {ESTIMATE_PAGE.goldPackage.title}
                 </h3>
+                <p className="text-[12px] text-gray-600 italic mb-1">
+                  Most Homeowners choose this option for the best long-term result
+                </p>
               </div>
               {estimate.transformationPrice != null ? (
                 <p className="text-3xl font-extrabold text-blue-600 mb-0.5">
@@ -448,93 +447,6 @@ function EstimateView({
                 </div>
               )}
             </button>
-          </div>
-        </section>
-      )}
-
-      {/* ── SECTION 4: Sink Upsell (refinishing only) ── */}
-      {!isEpoxy && !isCabinet && (estimate.bathroomSinkPrice || estimate.kitchenSinkPrice) && (
-        <section className="px-4 py-5">
-          <div className="rounded-xl border border-gray-200 shadow-sm p-4">
-            <h2 className="text-base font-bold text-gray-900 mb-0.5">
-              Don't leave your sink behind
-            </h2>
-            <p className="text-[13px] text-gray-500 mb-4">
-              We can refinish your sink during the same visit so everything
-              looks clean, consistent, and professionally finished.
-            </p>
-
-            <div className="space-y-3">
-              {estimate.bathroomSinkPrice != null && (
-                <label
-                  className={`flex items-center justify-between gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedSinks.bathroom
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={selectedSinks.bathroom}
-                      onChange={(e) =>
-                        setSelectedSinks((s) => ({
-                          ...s,
-                          bathroom: e.target.checked,
-                        }))
-                      }
-                      className="h-5 w-5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">
-                        Bathroom Sink
-                      </p>
-                      <p className="text-[11px] text-gray-500">
-                        Refinished to match during the same visit
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-base font-bold text-gray-900 shrink-0">
-                    +${estimate.bathroomSinkPrice.toLocaleString()}
-                  </span>
-                </label>
-              )}
-
-              {estimate.kitchenSinkPrice != null && (
-                <label
-                  className={`flex items-center justify-between gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedSinks.kitchen
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={selectedSinks.kitchen}
-                      onChange={(e) =>
-                        setSelectedSinks((s) => ({
-                          ...s,
-                          kitchen: e.target.checked,
-                        }))
-                      }
-                      className="h-5 w-5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">
-                        Kitchen Sink
-                      </p>
-                      <p className="text-[11px] text-gray-500">
-                        Refinished to match during the same visit
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-base font-bold text-gray-900 shrink-0">
-                    +${estimate.kitchenSinkPrice.toLocaleString()}
-                  </span>
-                </label>
-              )}
-            </div>
           </div>
         </section>
       )}
@@ -680,6 +592,96 @@ function EstimateView({
         </section>
       )}
 
+      {/* ── SINK UPSELL (refinishing only) ── */}
+      {!isEpoxy && !isCabinet && (estimate.bathroomSinkPrice || estimate.kitchenSinkPrice) && (
+        <section className="px-4 py-5">
+          <div className="rounded-xl border border-gray-200 shadow-sm p-4">
+            <h2 className="text-base font-bold text-gray-900 mb-1">
+              Complete the Look
+            </h2>
+            <p className="text-[13px] text-gray-500 mb-4">
+              Most customers choose to match their sink while we're already there.
+            </p>
+
+            <div className="space-y-3">
+              {estimate.bathroomSinkPrice != null && (
+                <label
+                  className={`flex items-center justify-between gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    selectedSinks.bathroom
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedSinks.bathroom}
+                      onChange={(e) =>
+                        setSelectedSinks((s) => ({
+                          ...s,
+                          bathroom: e.target.checked,
+                        }))
+                      }
+                      className="h-5 w-5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Bathroom Sink (Perfect Match)
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        Matched to your tub for a clean, consistent finish
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-base font-bold text-gray-900 shrink-0">
+                    +${estimate.bathroomSinkPrice.toLocaleString()}
+                  </span>
+                </label>
+              )}
+
+              {estimate.kitchenSinkPrice != null && (
+                <label
+                  className={`flex items-center justify-between gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    selectedSinks.kitchen
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedSinks.kitchen}
+                      onChange={(e) =>
+                        setSelectedSinks((s) => ({
+                          ...s,
+                          kitchen: e.target.checked,
+                        }))
+                      }
+                      className="h-5 w-5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Kitchen Sink (High-Use Upgrade)
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        Restore a clean, durable finish where it matters most
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-base font-bold text-gray-900 shrink-0">
+                    +${estimate.kitchenSinkPrice.toLocaleString()}
+                  </span>
+                </label>
+              )}
+            </div>
+
+            <p className="text-[12px] text-gray-400 mt-4 text-center">
+              Done during the same visit—no extra appointment needed.
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* ── RUNNING TOTAL + CTA ── */}
       <section className="px-4 py-4">
         <div className="bg-gray-900 text-white rounded-xl p-5 flex flex-col items-center gap-3 text-center">
@@ -691,6 +693,16 @@ function EstimateView({
               ${totalPrice.toLocaleString()}
             </p>
           </div>
+          {estimate.stripFee != null && (
+            <div className="w-full border-t border-gray-700 pt-2 mt-1">
+              <p className="text-sm text-gray-300">
+                Includes ${estimate.stripFee.toLocaleString()} strip fee
+              </p>
+              <p className="text-[11px] text-gray-500">
+                Fee charged to chemically/mechanically remove previous coating
+              </p>
+            </div>
+          )}
           <BookingButton />
         </div>
       </section>
@@ -748,7 +760,7 @@ function EstimateView({
           <div className="bg-green-500 py-3 px-4 text-center">
             <h2 className="text-lg font-bold text-white flex items-center justify-center gap-2">
               <Calendar className="h-5 w-5" />
-              Book Now
+              Book My Tub Refinish
             </h2>
             <p className="text-green-100 text-xs mt-0.5">Select a date and time that works for you</p>
           </div>
@@ -767,35 +779,6 @@ function EstimateView({
         </div>
       </section>
 
-      {/* ── BOOKING CTA ── */}
-      <section className="bg-blue-600 text-white py-8 px-5 text-center">
-        <h2 className="text-xl font-bold mb-1.5">{ESTIMATE_PAGE.ctaHeading}</h2>
-        <p className="text-blue-100 text-[13px] mb-5">
-          {ESTIMATE_PAGE.ctaSubtext}
-        </p>
-
-        <div className="flex flex-col items-stretch gap-3 mb-5 max-w-xs mx-auto">
-          <button
-            onClick={() => document.getElementById("booking-calendar")?.scrollIntoView({ behavior: "smooth" })}
-            className="flex items-center justify-center gap-2 bg-white text-blue-700 font-bold py-3.5 rounded-full text-base hover:bg-blue-50 transition-colors shadow"
-          >
-            <Calendar className="h-4 w-4" />
-            Book Now
-          </button>
-          <a
-            href={`tel:${COMPANY.phone}`}
-            className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-full text-base transition-colors shadow"
-          >
-            <Phone className="h-4 w-4" />
-            {COMPANY.phoneDisplay}
-          </a>
-        </div>
-
-        <p className="text-blue-200 text-[11px] leading-relaxed">
-          {ESTIMATE_PAGE.footerPromo}
-        </p>
-      </section>
-
       {/* ── TERMS ── */}
       <section className="px-4 py-5">
         <p className="text-[11px] text-gray-400 text-center leading-relaxed">
@@ -812,7 +795,7 @@ function BookingButton() {
       onClick={() => document.getElementById("booking-calendar")?.scrollIntoView({ behavior: "smooth" })}
       className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-full text-base transition-colors shadow w-full text-center block cursor-pointer"
     >
-      Book Now
+      Book My Tub Refinish
     </button>
   );
 }

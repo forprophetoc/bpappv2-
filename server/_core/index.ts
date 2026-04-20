@@ -8,6 +8,9 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { getEstimateBySlug } from "../db";
+import { ENV } from "./env";
+import { signAdminToken, isAdminAuthenticated, ADMIN_COOKIE_NAME } from "./adminAuth";
+import { timingSafeEqual } from "crypto";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -51,6 +54,44 @@ async function startServer() {
     res.set("Cache-Control", "public, max-age=86400");
     res.send(buffer);
   });
+  // Admin password gate
+  app.post("/api/admin/login", async (req, res) => {
+    const { password } = req.body || {};
+    if (!ENV.adminPassword) {
+      res.json({ success: true });
+      return;
+    }
+    if (!password || typeof password !== "string") {
+      res.status(401).json({ error: "Password required" });
+      return;
+    }
+    const a = Buffer.from(password);
+    const b = Buffer.from(ENV.adminPassword);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      res.status(401).json({ error: "Invalid password" });
+      return;
+    }
+    const token = await signAdminToken();
+    res.cookie(ADMIN_COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: ENV.isProduction,
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+    res.json({ success: true });
+  });
+
+  app.get("/api/admin/check", async (req, res) => {
+    const authenticated = await isAdminAuthenticated(req as any);
+    res.json({ authenticated });
+  });
+
+  app.post("/api/admin/logout", (_req, res) => {
+    res.clearCookie(ADMIN_COOKIE_NAME, { path: "/" });
+    res.json({ success: true });
+  });
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API

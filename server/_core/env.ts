@@ -16,4 +16,5 @@ export const ENV = {
   awsBucketName: process.env.S3_BUCKET_NAME ?? process.env.AWS_BUCKET_NAME ?? "",
   awsEndpoint: process.env.AWS_ENDPOINT ?? "",   // optional — leave blank for standard AWS S3
   publicUrl: process.env.PUBLIC_URL ?? "https://esticlose.com",
+  adminPassword: process.env.ADMIN_PASSWORD ?? "",
 };

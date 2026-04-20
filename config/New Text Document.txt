@@ -1,0 +1,113 @@
+{
+  "company": {
+    "name": "Bathtub Pros",
+    "phone": "(239) 307-7945",
+    "logoUrl": "/https://lirp.cdn-website.com/fa4035d5/dms3rep/multi/opt/original-logos-small-640w.jpg",
+    "bookingLink": "https://api.leadconnectorhq.com/widget/booking/Ie1eUTKuBkr3kxbRoKRy"
+  },
+
+  "services": {
+    "bathtub": {
+      "enabled": true,
+      "basePrice": 299,
+
+      "packages": {
+        "standard": {
+          "name": "Standard Package",
+          "price": 2999,
+          "description": [
+            "Professional bathtub refinishing",
+            "Deep cleaning and surface prep",
+            "Clean, glossy white finish",          ]
+            "Three Year No Peel Warranty"
+
+        },
+
+        "gold": {
+          "name": "Gold Package",
+          "price": 429,
+          "badge": "Recommended",
+          "description": [
+            "Everything in Standard Package",
+            "Premium coating system for enhanced durability",
+            "Epoxy Primer for ultimate adhesion"
+            "Extended finish life",
+            "Best for beach communities",
+            "Chip Repair & Antislip included
+            "Limited Lifetime No Peel Warranty"
+          ]
+        }
+      },
+
+      "upsells": {
+        "sinkRefinish": {
+          "enabled": true,
+          "label": "Match your sink to your new finish",
+          "price": 225
+        }
+      }
+    },
+
+    "cabinets": {
+      "enabled": true,
+
+      "upsells": {
+        "softClose": {
+          "label": "Soft-Close Hinge Upgrade ($10 per door)"
+        },
+        "hardwareSame": {
+          "label": "Hardware Replacement (same hole spacing)"
+        },
+        "hardwareCustom": {
+          "label": "Hardware Upgrade (new hole pattern / custom install)"
+        }
+      },
+
+      "warranty": "Limited Warranty"
+    }
+  },
+
+  "callouts": {
+    "bathtub": {
+      "red": {
+        "headline": "Most Other Companies...",
+        "points": [
+          "Charge extra for chip repair and non-slip",
+          "Use lower-quality coatings",
+          "Rushed prep leads to peeling",
+          "Hidden fees after the quote"
+        ]
+      },
+      "green": {
+        "headline": "What You Get With Us",
+        "points": [
+          "All-inclusive refinishing system",
+          "Proper prep for long-term adhesion",
+          "No hidden fees",
+          "Durable, glossy finish"
+        ]
+      }
+    },
+
+    "cabinets": {
+      "red": {
+        "headline": "Most Other Companies...",
+        "points": [
+          "Brush or roll finishes that leave visible texture",
+          "Uneven color and inconsistent coverage",
+          "Use lower-grade coatings that chip and wear",
+          "Cut corners on prep for faster turnaround"
+        ]
+      },
+      "green": {
+        "headline": "What You Get With Us",
+        "points": [
+          "Smooth, factory-like cabinet finish",
+          "Even, consistent color application",
+          "Durable coating built for daily use",
+          "Updated look without full replacement"
+        ]
+      }
+    }
+  }
+}

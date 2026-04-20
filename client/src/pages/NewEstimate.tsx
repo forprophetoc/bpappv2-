@@ -12,6 +12,7 @@ const SERVICES = [
   { value: "Tub", label: "Bathtub Refinishing" },
   { value: "Shower", label: "Shower Refinishing" },
   { value: "Soaking Tub/Jacuzzi", label: "Jacuzzi / Soaking Tub" },
+  { value: "Tub & Tile", label: "Tub & Tile" },
   // { value: "Epoxy Flooring", label: "Epoxy Flooring" }, // shelved — render not up to standards
   { value: "Cabinet Refinishing", label: "Cabinet Refinishing" },
 ];
@@ -20,6 +21,7 @@ const SERVICE_TYPE_MAP: Record<string, string> = {
   Tub: "bathtub",
   Shower: "shower",
   "Soaking Tub/Jacuzzi": "jacuzzi",
+  "Tub & Tile": "tub_tile",
   "Epoxy Flooring": "epoxy",
   "Cabinet Refinishing": "cabinet",
 };
@@ -28,7 +30,7 @@ const DEFAULT_PRICES = COMPANY.defaultPrices;
 
 const DURATIONS = ["3 Hours", "4 Hours", "5 Hours", "6 Hours", "Full Day"];
 
-function compressImage(file: File, maxWidth = 2048, quality = 0.92): Promise<{ base64: string; mimeType: string }> {
+function compressImage(file: File, maxWidth = 3200, quality = 0.97): Promise<{ base64: string; mimeType: string }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -83,6 +85,8 @@ export default function NewEstimate() {
   const [flakeColor, setFlakeColor] = useState("");
   const [maintenancePlanPrice, setMaintenancePlanPrice] = useState(COMPANY.epoxyMaintenancePlanPrice ? String(COMPANY.epoxyMaintenancePlanPrice) : "");
   const [uvClearCoatPrice, setUvClearCoatPrice] = useState(COMPANY.epoxyUvClearCoatPrice ? String(COMPANY.epoxyUvClearCoatPrice) : "");
+
+  const [stripFee, setStripFee] = useState("");
 
   // Cabinet state
   const [upperCabinetColor, setUpperCabinetColor] = useState<CabinetColor | null>(null);
@@ -187,7 +191,7 @@ export default function NewEstimate() {
     setPipelineError(null);
     setGeneratedSlug(null);
 
-    const PIPELINE_ALLOWED_TYPES = ["bathtub", "shower", "jacuzzi", "cabinet"]; // epoxy shelved
+    const PIPELINE_ALLOWED_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"]; // epoxy shelved
     const currentServiceType = SERVICE_TYPE_MAP[service] || "bathtub";
 
     try {
@@ -240,7 +244,7 @@ export default function NewEstimate() {
         firstName,
         lastName,
         service,
-        serviceType: (SERVICE_TYPE_MAP[service] || "bathtub") as "bathtub" | "shower" | "jacuzzi" | "cabinet",
+        serviceType: (SERVICE_TYPE_MAP[service] || "bathtub") as "bathtub" | "shower" | "jacuzzi" | "tub_tile" | "cabinet",
         price: priceNum,
         beforeUrl,
         ...(afterUrl ? { afterUrl } : {}),
@@ -261,6 +265,7 @@ export default function NewEstimate() {
         ...(() => { const v = parseInt(softCloseHingeUpgrade, 10); return !isNaN(v) && v > 0 ? { softCloseHingeUpgrade: v } : {}; })(),
         ...(() => { const v = parseInt(hardwareReplacement, 10); return !isNaN(v) && v > 0 ? { hardwareReplacement: v } : {}; })(),
         ...(() => { const v = parseInt(hardwareUpgrade, 10); return !isNaN(v) && v > 0 ? { hardwareUpgrade: v } : {}; })(),
+        ...(() => { const v = parseInt(stripFee, 10); return !isNaN(v) && v > 0 ? { stripFee: v } : {}; })(),
         ...(COMPANY.bookingLink ? { bookingLink: COMPANY.bookingLink } : {}),
       });
 
@@ -561,6 +566,21 @@ export default function NewEstimate() {
                   placeholder={`e.g. $${COMPANY.kitchenSinkPrice}`}
                   value={kitchenSinkPrice}
                   onChange={(e) => setKitchenSinkPrice(e.target.value)}
+                  min={1}
+                  className="form-input"
+                />
+              </Field>
+            </div>
+          )}
+          {/* Strip Fee — refinishing services only */}
+          {(SERVICE_TYPE_MAP[service]) !== "epoxy" && (SERVICE_TYPE_MAP[service]) !== "cabinet" && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Strip Fee">
+                <input
+                  type="number"
+                  placeholder="Leave empty if none"
+                  value={stripFee}
+                  onChange={(e) => setStripFee(e.target.value)}
                   min={1}
                   className="form-input"
                 />

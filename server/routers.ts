@@ -6,7 +6,7 @@ import { ENV } from "./_core/env";
 import { generateImage } from "./_core/imageGeneration";
 import { isS3Configured, uploadGeneratedImageToS3 } from "./_core/s3";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { adminGateProcedure, publicProcedure, router } from "./_core/trpc";
 import { getAllEstimates, getEstimateBySlug, markEstimateViewed, nameToSlug, updateEstimateStatus, upsertEstimate } from "./db";
 import { COMPANY } from "../esticlose.config";
 
@@ -14,14 +14,14 @@ export const appRouter = router({
   system: systemRouter,
 
   pipeline: router({
-    keyStatus: publicProcedure.query(() => {
+    keyStatus: adminGateProcedure.query(() => {
       return {
         gemini: !!ENV.geminiApiKey,
         s3: !!(ENV.awsAccessKeyId && ENV.awsSecretAccessKey && ENV.awsBucketName),
       };
     }),
 
-    testImage: publicProcedure
+    testImage: adminGateProcedure
       .input(
         z.object({
           imageBase64: z.string().min(1),
@@ -34,7 +34,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
-        const ALLOWED_SERVICE_TYPES = ["bathtub", "shower", "jacuzzi", "cabinet"]; // epoxy shelved
+        const ALLOWED_SERVICE_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"]; // epoxy shelved
         if (input.serviceType && !ALLOWED_SERVICE_TYPES.includes(input.serviceType)) {
           return {
             afterUrl: null,
@@ -44,9 +44,10 @@ export const appRouter = router({
         }
 
         const prompts: Record<string, string> = {
-          bathtub: "Refinish this bathtub to look brand new with a glossy, smooth, professional white finish. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear. The result should look like a freshly refinished bathtub in a real residential bathroom.",
-          shower: "Refinish this shower to look brand new with a glossy, smooth, professional white finish. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear. The result should look like a freshly refinished shower in a real residential bathroom.",
-          jacuzzi: "Refinish this soaking tub / jacuzzi to look brand new with a glossy, smooth, professional white finish. Refinish the entire visible surface including the inside basin, the outside apron, and any surrounding backsplash or ledge areas. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear from all surfaces. The result should look like a fully refinished soaking tub with every visible surface restored in a real residential bathroom.",
+          bathtub: "make this tub appear as if it was just refinished in a shiny, glossy white. remove clutter from tub area. do not change size or perspective. do not add anything to the bathtub, do not duplicate drain covers.",
+          tub_tile: "make this tub and surrounding tile appear as if it was just refinished in a shiny, glossy white. remove clutter from tub area. do not change size or perspective. do not add anything to the bathtub, do not duplicate drain covers.",
+          shower: "Refinish this shower to look brand new with a high-gloss, smooth, professional white finish with visible light reflections and specular highlights like freshly glazed wet porcelain. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear. The result should look like a freshly refinished shower with a mirror-like wet gloss sheen in a real residential bathroom.",
+          jacuzzi: "Refinish this soaking tub / jacuzzi to look brand new with a high-gloss, smooth, professional white finish with visible light reflections and specular highlights like freshly glazed wet porcelain. Refinish the entire visible surface including the inside basin, the outside apron, and any surrounding backsplash or ledge areas. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear from all surfaces. The result should look like a fully refinished soaking tub with a mirror-like wet gloss sheen and every visible surface restored in a real residential bathroom.",
           epoxy: "Apply a professional epoxy floor coating to this garage or residential floor. Show a smooth, glossy, seamless epoxy finish with decorative color flakes evenly distributed across the surface. Keep the same perspective, lighting, and surroundings. Remove stains, cracks, and imperfections. The result should look like a freshly coated professional epoxy floor in a real residential setting.",
           cabinet: "Refinish the cabinets in this kitchen photo to look professionally sprayed with a smooth, even finish. Keep the same layout, countertops, backsplash, appliances, lighting, and camera angle. Only modify cabinet surfaces.",
         };
@@ -75,7 +76,7 @@ export const appRouter = router({
         };
       }),
 
-    uploadBeforeImage: publicProcedure
+    uploadBeforeImage: adminGateProcedure
       .input(
         z.object({
           imageBase64: z.string().min(1),
@@ -112,14 +113,14 @@ export const appRouter = router({
   }),
 
   estimates: router({
-    create: publicProcedure
+    create: adminGateProcedure
       .input(
         z.object({
           name: z.string().min(1),
           firstName: z.string().optional(),
           lastName: z.string().optional(),
           service: z.string().min(1),
-          serviceType: z.enum(["bathtub", "shower", "jacuzzi", "cabinet"]).default("bathtub"), // epoxy shelved
+          serviceType: z.enum(["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"]).default("bathtub"), // epoxy shelved
           price: z.number().int().positive(),
           beforeUrl: z.string().min(1),
           afterUrl: z.string().min(1).optional(),
@@ -136,6 +137,7 @@ export const appRouter = router({
           softCloseHingeUpgrade: z.number().int().positive().optional(),
           hardwareReplacement: z.number().int().positive().optional(),
           hardwareUpgrade: z.number().int().positive().optional(),
+          stripFee: z.number().int().positive().optional(),
           bookingLink: z.string().optional(),
           calendarEmbed: z.string().optional(),
           email: z.string().optional(),
@@ -151,15 +153,16 @@ export const appRouter = router({
         const companyName = input.companyName || COMPANY.name;
         const slug = nameToSlug(input.name, input.firstName, input.lastName, companyName);
 
-        const ALLOWED_PIPELINE_TYPES = ["bathtub", "shower", "jacuzzi", "cabinet"]; // epoxy shelved
+        const ALLOWED_PIPELINE_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"]; // epoxy shelved
         let afterUrl: string;
         if (input.afterUrl) {
           afterUrl = input.afterUrl;
         } else if (ALLOWED_PIPELINE_TYPES.includes(input.serviceType)) {
           const createPrompts: Record<string, string> = {
-            bathtub: "Refinish this bathtub to look brand new with a glossy, smooth, professional white finish. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear. The result should look like a freshly refinished bathtub in a real residential bathroom.",
-            shower: "Refinish this shower to look brand new with a glossy, smooth, professional white finish. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear. The result should look like a freshly refinished shower in a real residential bathroom.",
-            jacuzzi: "Refinish this soaking tub / jacuzzi to look brand new with a glossy, smooth, professional white finish. Refinish the entire visible surface including the inside basin, the outside apron, and any surrounding backsplash or ledge areas. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear from all surfaces. The result should look like a fully refinished soaking tub with every visible surface restored in a real residential bathroom.",
+            bathtub: "make this tub appear as if it was just refinished in a shiny, glossy white. remove clutter from tub area. do not change size or perspective. do not add anything to the bathtub, do not duplicate drain covers.",
+            tub_tile: "make this tub and surrounding tile appear as if it was just refinished in a shiny, glossy white. remove clutter from tub area. do not change size or perspective. do not add anything to the bathtub, do not duplicate drain covers.",
+            shower: "Refinish this shower to look brand new with a high-gloss, smooth, professional white finish with visible light reflections and specular highlights like freshly glazed wet porcelain. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear. The result should look like a freshly refinished shower with a mirror-like wet gloss sheen in a real residential bathroom.",
+            jacuzzi: "Refinish this soaking tub / jacuzzi to look brand new with a high-gloss, smooth, professional white finish with visible light reflections and specular highlights like freshly glazed wet porcelain. Refinish the entire visible surface including the inside basin, the outside apron, and any surrounding backsplash or ledge areas. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear from all surfaces. The result should look like a fully refinished soaking tub with a mirror-like wet gloss sheen and every visible surface restored in a real residential bathroom.",
             epoxy: "Apply a professional epoxy floor coating to this garage or residential floor. Show a smooth, glossy, seamless epoxy finish with decorative color flakes evenly distributed across the surface. Keep the same perspective, lighting, and surroundings. Remove stains, cracks, and imperfections. The result should look like a freshly coated professional epoxy floor in a real residential setting.",
             cabinet: "Refinish the cabinets in this kitchen photo to look professionally sprayed with a smooth, even finish. Keep the same layout, countertops, backsplash, appliances, lighting, and camera angle. Only modify cabinet surfaces.",
           };
@@ -203,6 +206,7 @@ export const appRouter = router({
           softCloseHingeUpgrade: input.softCloseHingeUpgrade,
           hardwareReplacement: input.hardwareReplacement,
           hardwareUpgrade: input.hardwareUpgrade,
+          stripFee: input.stripFee,
           bookingLink: input.bookingLink || COMPANY.bookingLink || undefined,
           calendarEmbed: input.calendarEmbed,
           slug,
@@ -220,7 +224,7 @@ export const appRouter = router({
         return { slug, estimate };
       }),
 
-    list: publicProcedure.query(() => {
+    list: adminGateProcedure.query(() => {
       const all = getAllEstimates();
       // Strip heavy image data from list responses to keep payloads small
       return all.map(({ beforeUrl, afterUrl, transformationImageUrl, calendarEmbed, ...rest }) => ({
@@ -232,7 +236,7 @@ export const appRouter = router({
       }));
     }),
 
-    updateStatus: publicProcedure
+    updateStatus: adminGateProcedure
       .input(z.object({
         id: z.number(),
         status: z.enum(["New Lead", "Estimate Sent", "Appointment Booked", "Completed"]),

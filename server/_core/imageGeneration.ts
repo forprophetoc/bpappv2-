@@ -48,7 +48,15 @@ const BATHTUB_STEPS: PipelineStep[] = [
   {
     name: "Step 1 — Refinish tub",
     prompt:
-      "Make this bathtub look like a brand new shiny glossy white tub. The surface should be bright white, shiny, glossy, and reflective like fresh porcelain. Replace the existing tub surface completely with a clean, solid white gloss finish. Remove all clutter, bottles, shampoo, laundry baskets, and random items from the scene. Do not change the structure, layout, angle, or fixtures. Only change the bathtub surface and remove clutter.",
+      "make this tub appear as if it was just refinished in a shiny, glossy white. remove clutter from tub area. do not change size or perspective. do not add anything to the bathtub, do not duplicate drain covers.",
+  },
+];
+
+const TUB_TILE_STEPS: PipelineStep[] = [
+  {
+    name: "Step 1 — Refinish tub & tile",
+    prompt:
+      "make this tub and surrounding tile appear as if it was just refinished in a shiny, glossy white. remove clutter from tub area. do not change size or perspective. do not add anything to the bathtub, do not duplicate drain covers.",
   },
 ];
 
@@ -100,6 +108,7 @@ function getCabinetSteps(upperColor?: string, lowerColor?: string): PipelineStep
 }
 
 function getPipelineSteps(serviceType?: string, baseColor?: string, flakeColor?: string, upperCabinetColor?: string, lowerCabinetColor?: string): PipelineStep[] {
+  if (serviceType === "tub_tile") return TUB_TILE_STEPS;
   if (serviceType === "epoxy") return getEpoxySteps(baseColor, flakeColor);
   if (serviceType === "cabinet") return getCabinetSteps(upperCabinetColor, lowerCabinetColor);
   return BATHTUB_STEPS;

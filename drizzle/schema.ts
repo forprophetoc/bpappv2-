@@ -53,6 +53,8 @@ export const estimates = sqliteTable("estimates", {
   softCloseHingeUpgrade: integer("softCloseHingeUpgrade"),
   hardwareReplacement: integer("hardwareReplacement"),
   hardwareUpgrade: integer("hardwareUpgrade"),
+  /** Strip fee — charged to remove previous coating */
+  stripFee: integer("stripFee"),
   /** Booking — if bookingLink exists, render button; else render calendarEmbed */
   bookingLink: text("bookingLink"),
   calendarEmbed: text("calendarEmbed"),

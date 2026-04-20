@@ -11,10 +11,11 @@ export const COMPANY = {
   phoneDisplay: "(239) 307-7945",
   logoUrl: "https://lirp.cdn-website.com/fa4035d5/dms3rep/multi/opt/original-logos-small-640w.jpg",
   bookingLink: "https://api.leadconnectorhq.com/widget/booking/Ie1eUTKuBkr3kxbRoKRy",
+  websiteUrl: "https://www.bathtubpros.com",
   supportEmail: "info@bathtubpros.com",
   serviceArea: "Southwest Florida",
-  bathroomSinkPrice: 225,
-  kitchenSinkPrice: 225,
+  bathroomSinkPrice: 199,
+  kitchenSinkPrice: 249,
   epoxyMaintenancePlanPrice: 199,
   epoxyUvClearCoatPrice: 349,
   /** Default prices per service (used as form defaults in New Estimate) */
@@ -22,6 +23,7 @@ export const COMPANY = {
     Tub: 299,
     Shower: 299,
     "Soaking Tub/Jacuzzi": 699,
+    "Tub & Tile": 499,
     "Epoxy Flooring": 1499,
     "Cabinet Refinishing": 2999,
   } as Record<string, number>,
@@ -47,21 +49,12 @@ export const ESTIMATE_PAGE = {
   greenCallout: {
     heading: "What You Get With Us",
     items: [
-      "All-inclusive refinishing system",
-      "Proper prep for long-term adhesion",
-      "No hidden fees",
-      "Durable, glossy finish",
-    ],
-  },
-
-  /** Red callout — what competitors get wrong */
-  redCallout: {
-    heading: "Most Other Companies...",
-    items: [
-      "Charge extra for chip repair and non-slip",
-      "Use lower-quality coatings",
-      "Rushed prep leads to peeling",
-      "Hidden fees after the quote",
+      "Owner on-site every job",
+      "\"Real\" warranty honored since 2013",
+      "No runs, drips or sags — or we go back and fix",
+      "11,000+ refinished tubs",
+      "No upcharges or hidden fees ever",
+      "Proud member of the Professional Bathtub Refinishers Association",
     ],
   },
 
