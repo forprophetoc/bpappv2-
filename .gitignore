@@ -1,0 +1,57 @@
+# Dependencies
+**/node_modules
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.dist
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.pid.lock
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Database (recreated on deploy via migrations)
+*.db
+*.sqlite
+*.sqlite3
+
+# Webdev artifacts
+.webdev/
+
+# Manus
+.manus-logs/
+client/public/__manus__/version.json
+
+# Claude
+.claude/
+client/public videos/

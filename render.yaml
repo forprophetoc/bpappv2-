@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: bathtubapp-staging
+    runtime: node
+    region: ohio
+    plan: free
+    buildCommand: npm install && npm run db:push && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:./sqlite.db
+      - key: PUBLIC_URL
+        sync: false
+      - key: GHL_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        value: us-east-1
+      - key: S3_BUCKET_NAME
+        value: bathtub-pros-images

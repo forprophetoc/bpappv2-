@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head><title>Upload & Webhook Test</title></head>
+<body style="font-family:sans-serif; max-width:600px; margin:40px auto; padding:20px;">
+  <h1>Step 1: Upload Image</h1>
+  <input type="file" id="filePicker" accept="image/*" style="font-size:18px;">
+  <p id="uploadStatus" style="color:gray;">Pick a bathtub photo</p>
+
+  <hr>
+
+  <h1>Step 2: Trigger Webhook</h1>
+  <label>Customer Name: <input id="name" value="John Smith" style="font-size:16px;"></label><br><br>
+  <button id="webhookBtn" disabled style="font-size:18px; padding:10px 20px;">Send to Webhook</button>
+  <p id="webhookStatus" style="color:gray;"></p>
+
+  <script>
+    let publicUrl = "";
+
+    document.getElementById("filePicker").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const status = document.getElementById("uploadStatus");
+      status.textContent = "Uploading to S3 via server...";
+      status.style.color = "orange";
+
+      try {
+        const res = await fetch("/api/upload/direct", {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          publicUrl = data.publicUrl;
+          status.textContent = "Uploaded! URL: " + publicUrl;
+          status.style.color = "green";
+          document.getElementById("webhookBtn").disabled = false;
+        } else {
+          status.textContent = "Failed: " + (data.error || res.status);
+          status.style.color = "red";
+        }
+      } catch (err) {
+        status.textContent = "Error: " + err.message;
+        status.style.color = "red";
+      }
+    });
+
+    document.getElementById("webhookBtn").addEventListener("click", async () => {
+      const wStatus = document.getElementById("webhookStatus");
+      wStatus.textContent = "Sending...";
+      wStatus.style.color = "orange";
+
+      const res = await fetch("/api/webhook/ghl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactId: "test-" + Date.now(),
+          beforePhotoUrl: publicUrl,
+          name: document.getElementById("name").value || "John Smith",
+          serviceType: "bathtub",
+          price: 449
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        wStatus.textContent = "Webhook triggered! Check your terminal for pipeline logs.";
+        wStatus.style.color = "green";
+      } else {
+        wStatus.textContent = "Webhook error: " + (data.error || res.status);
+        wStatus.style.color = "red";
+      }
+    });
+  </script>
+</body>
+</html>
