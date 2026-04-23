@@ -41,8 +41,11 @@ function getS3Client(): S3Client {
   return new S3Client(config);
 }
 
-function buildPublicS3Url(bucket: string, region: string, key: string): string {
-  return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+function buildPublicS3Url(_bucket: string, _region: string, key: string): string {
+  // Route through the server image proxy (/api/images/*) so the browser
+  // never hits S3 directly — the bucket is private.
+  const publicUrl = process.env.PUBLIC_URL?.replace(/\/+$/, "") || "";
+  return `${publicUrl}/api/images/${key}`;
 }
 
 export async function uploadGeneratedImageToS3(params: {
@@ -100,16 +103,22 @@ export function isOwnedS3Url(url: string): boolean {
   const bucket = process.env.S3_BUCKET_NAME;
   const region = process.env.AWS_REGION;
   if (!bucket || !region) return false;
-  return url.startsWith(`https://${bucket}.s3.${region}.amazonaws.com/`);
+  // Match direct S3 URLs (any region variant) or proxy URLs
+  if (url.startsWith(`https://${bucket}.s3.`)) return true;
+  if (url.includes("/api/images/")) return true;
+  return false;
 }
 
 export function extractKeyFromS3Url(url: string): string | null {
+  // Handle proxy URLs: .../api/images/generated/xxx.png
+  const proxyMatch = url.match(/\/api\/images\/(.+?)(?:\?|$)/);
+  if (proxyMatch) return proxyMatch[1];
+  // Handle direct S3 URLs: https://bucket.s3.region.amazonaws.com/key
   const bucket = process.env.S3_BUCKET_NAME;
-  const region = process.env.AWS_REGION;
-  if (!bucket || !region) return null;
-  const prefix = `https://${bucket}.s3.${region}.amazonaws.com/`;
-  if (!url.startsWith(prefix)) return null;
-  return url.slice(prefix.length).split("?")[0];
+  if (!bucket) return null;
+  const s3Match = url.match(new RegExp(`https://${bucket}\\.s3\\.[^/]+\\.amazonaws\\.com/(.+?)(?:\\?|$)`));
+  if (s3Match) return s3Match[1];
+  return null;
 }
 
 export async function getObjectFromS3(key: string): Promise<{ buffer: Buffer; contentType: string }> {
