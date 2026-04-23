@@ -23,13 +23,22 @@ function getS3Client(): S3Client {
     throw new Error(`Missing S3 env vars: ${missing.join(", ")}`);
   }
 
-  return new S3Client({
+  const config: ConstructorParameters<typeof S3Client>[0] = {
     region: process.env.AWS_REGION!,
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
     },
-  });
+  };
+
+  // Custom endpoint for S3-compatible services (R2, Spaces, MinIO, etc.)
+  const endpoint = process.env.AWS_ENDPOINT?.trim();
+  if (endpoint) {
+    config.endpoint = endpoint;
+    config.forcePathStyle = true;
+  }
+
+  return new S3Client(config);
 }
 
 function buildPublicS3Url(bucket: string, region: string, key: string): string {
