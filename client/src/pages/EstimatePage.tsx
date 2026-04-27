@@ -12,7 +12,7 @@ import {
   BadgeDollarSign,
   MapPin,
 } from "lucide-react";
-import { COMPANY, ESTIMATE_PAGE, EPOXY_PAGE, CABINET_PAGE } from "../../../esticlose.config";
+// Config is loaded dynamically per-company via tRPC
 
 type ServiceType = "bathtub" | "shower" | "jacuzzi" | "tub_tile" | "epoxy" | "cabinet";
 
@@ -44,7 +44,13 @@ export default function EstimatePage() {
     { enabled: !!slug }
   );
 
-  if (isLoading) {
+  const companySlug = (estimate as any)?.companySlug || "bathtub-pros";
+  const { data: config, isLoading: configLoading } = trpc.config.bySlug.useQuery(
+    { slug: companySlug },
+    { enabled: !!estimate }
+  );
+
+  if (isLoading || configLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
@@ -65,11 +71,21 @@ export default function EstimatePage() {
     );
   }
 
-  return <EstimateView estimate={estimate} />;
+  // Provide fallback config structure if config not loaded
+  const COMPANY = config?.company || { name: "EstiClose", phone: "", phoneDisplay: "", logoUrl: "", bookingLink: "", websiteUrl: "#", serviceArea: "", bathroomSinkPrice: 0, kitchenSinkPrice: 0, epoxyMaintenancePlanPrice: 0, epoxyUvClearCoatPrice: 0, defaultPrices: {}, slug: "", supportEmail: "" };
+  const ESTIMATE_PAGE = config?.estimatePage || { headerBadge: "", headerTitle: "", trustStrip: [], heroSubtitle: "", greenCallout: { heading: "", items: [] }, standardPackage: { name: "", title: "", warrantyLabel: "", features: [] }, goldPackage: { name: "", title: "", subtitle: "", badge: "", features: [] }, benefits: [], testimonials: [], ctaHeading: "", ctaSubtext: "", termsText: "", footerPromo: "" };
+  const EPOXY_PAGE = config?.epoxyPage || { heroSubtitle: "", greenCallout: { heading: "", items: [] }, redCallout: { heading: "", items: [] }, warrantyLabel: "", baseColors: [], flakeColors: [], benefits: [], testimonials: [], headerBadge: "", headerTitle: "" };
+  const CABINET_PAGE = config?.cabinetPage || { heroSubtitle: "", greenCallout: { heading: "", items: [] }, redCallout: { heading: "", items: [] }, warrantyLabel: "", benefits: [], testimonials: [], headerBadge: "", headerTitle: "" };
+
+  return <EstimateView estimate={estimate} COMPANY={COMPANY} ESTIMATE_PAGE={ESTIMATE_PAGE} EPOXY_PAGE={EPOXY_PAGE} CABINET_PAGE={CABINET_PAGE} />;
 }
 
 function EstimateView({
   estimate,
+  COMPANY,
+  ESTIMATE_PAGE,
+  EPOXY_PAGE,
+  CABINET_PAGE,
 }: {
   estimate: {
     id: number;
@@ -102,6 +118,10 @@ function EstimateView({
     companyLogoUrl: string | null;
     createdAt: Date;
   };
+  COMPANY: Record<string, any>;
+  ESTIMATE_PAGE: Record<string, any>;
+  EPOXY_PAGE: Record<string, any>;
+  CABINET_PAGE: Record<string, any>;
 }) {
   const firstName = deriveFirstName(estimate);
   const serviceType = (estimate.serviceType || "bathtub") as ServiceType;
@@ -224,7 +244,7 @@ function EstimateView({
 
       {/* ── TRUST STRIP ── */}
       <div className="bg-gray-800 text-gray-300 text-[11px] leading-relaxed py-2 px-3 flex flex-col items-center gap-0.5 text-center sm:flex-row sm:justify-center sm:gap-4">
-        {ESTIMATE_PAGE.trustStrip.map((item, i) => (
+        {(ESTIMATE_PAGE.trustStrip as string[]).map((item: string, i: number) => (
           <span key={i} className={i === 0 ? "flex items-center gap-1" : ""}>
             {i === 0 && <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />}
             {item}
@@ -334,7 +354,7 @@ function EstimateView({
                 <p className="text-green-700 font-semibold text-sm mb-2 flex items-center gap-1.5">
                   <CheckCircle className="h-4 w-4 shrink-0" /> {green.heading}
                 </p>
-                {green.items.map((item) => (
+                {green.items.map((item: any) => (
                   <p key={item} className="text-[13px] leading-snug text-green-800 flex items-start gap-1.5 mb-1.5">
                     <CheckCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-green-600" />
                     {item}
@@ -377,7 +397,7 @@ function EstimateView({
                 {ESTIMATE_PAGE.standardPackage.warrantyLabel}
               </p>
               <ul className="text-[13px] text-gray-700 space-y-3 flex-1">
-                {ESTIMATE_PAGE.standardPackage.features.map((f) => (
+                {ESTIMATE_PAGE.standardPackage.features.map((f: any) => (
                   <li key={f.title} className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
                     <div>
@@ -431,7 +451,7 @@ function EstimateView({
                 {ESTIMATE_PAGE.goldPackage.subtitle}
               </p>
               <ul className="text-[13px] text-gray-700 space-y-3 flex-1">
-                {ESTIMATE_PAGE.goldPackage.features.map((f) => (
+                {ESTIMATE_PAGE.goldPackage.features.map((f: any) => (
                   <li key={f.title} className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
                     <div>
@@ -710,7 +730,7 @@ function EstimateView({
       {/* ── BENEFITS ── */}
       <section className="px-4 py-4">
         <div className="grid grid-cols-2 gap-2.5">
-          {(isCabinet ? CABINET_PAGE.benefits : isEpoxy ? EPOXY_PAGE.benefits : ESTIMATE_PAGE.benefits).map((b, i) => {
+          {(isCabinet ? CABINET_PAGE.benefits : isEpoxy ? EPOXY_PAGE.benefits : ESTIMATE_PAGE.benefits).map((b: any, i: number) => {
             const Icon = BENEFIT_ICONS[i] || ShieldCheck;
             return (
               <div
@@ -732,7 +752,7 @@ function EstimateView({
           What Customers Say
         </h2>
         <div className="space-y-3">
-          {(isCabinet ? CABINET_PAGE.testimonials : isEpoxy ? EPOXY_PAGE.testimonials : ESTIMATE_PAGE.testimonials).map((t) => (
+          {(isCabinet ? CABINET_PAGE.testimonials : isEpoxy ? EPOXY_PAGE.testimonials : ESTIMATE_PAGE.testimonials).map((t: any) => (
             <blockquote
               key={t.author}
               className="bg-gray-50 border border-gray-200 rounded-xl p-3.5"

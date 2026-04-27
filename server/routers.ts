@@ -7,8 +7,9 @@ import { generateImage } from "./_core/imageGeneration";
 import { isS3Configured, uploadGeneratedImageToS3 } from "./_core/s3";
 import { systemRouter } from "./_core/systemRouter";
 import { adminGateProcedure, publicProcedure, router } from "./_core/trpc";
-import { getAllEstimates, getEstimateBySlug, markEstimateViewed, nameToSlug, updateEstimateStatus, upsertEstimate } from "./db";
-import { COMPANY } from "../esticlose.config";
+import { getEstimatesByCompanyId, getEstimateBySlug, markEstimateViewed, nameToSlug, updateEstimateStatus, upsertEstimate, getCompanyStripeMapping, meterEstimateIfNeeded, markUsageEventReported } from "./db";
+import { getStripe, reportStripeUsageEvent } from "./_core/stripe";
+import { getCompanyConfig } from "../config";
 
 export const appRouter = router({
   system: systemRouter,
@@ -34,7 +35,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
-        const ALLOWED_SERVICE_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"]; // epoxy shelved
+        const ALLOWED_SERVICE_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"];
         if (input.serviceType && !ALLOWED_SERVICE_TYPES.includes(input.serviceType)) {
           return {
             afterUrl: null,
@@ -112,6 +113,23 @@ export const appRouter = router({
     }),
   }),
 
+  /** Returns company config for the authenticated user's company */
+  config: router({
+    get: adminGateProcedure.query(({ ctx }) => {
+      const config = getCompanyConfig((ctx as any).companySlug);
+      if (!config) throw new TRPCError({ code: "NOT_FOUND", message: "Company config not found" });
+      return config;
+    }),
+    /** Public: fetch config by company slug (used by estimate page) */
+    bySlug: publicProcedure
+      .input(z.object({ slug: z.string().min(1) }))
+      .query(({ input }) => {
+        const config = getCompanyConfig(input.slug);
+        if (!config) throw new TRPCError({ code: "NOT_FOUND", message: "Company config not found" });
+        return config;
+      }),
+  }),
+
   estimates: router({
     create: adminGateProcedure
       .input(
@@ -120,7 +138,7 @@ export const appRouter = router({
           firstName: z.string().optional(),
           lastName: z.string().optional(),
           service: z.string().min(1),
-          serviceType: z.enum(["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"]).default("bathtub"), // epoxy shelved
+          serviceType: z.enum(["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"]).default("bathtub"),
           price: z.number().int().positive(),
           beforeUrl: z.string().min(1),
           afterUrl: z.string().min(1).optional(),
@@ -149,11 +167,19 @@ export const appRouter = router({
           companyLogoUrl: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
-        const companyName = input.companyName || COMPANY.name;
+      .mutation(async ({ input, ctx }) => {
+        const companyId = (ctx as any).companyId as number;
+        const companySlug = (ctx as any).companySlug as string;
+
+        // Load company config from file system
+        const companyConfig = getCompanyConfig(companySlug);
+        const companyName = input.companyName || companyConfig?.company.name || "EstiClose";
+        const companyLogoUrl = input.companyLogoUrl || companyConfig?.company.logoUrl || undefined;
+        const bookingLink = input.bookingLink || companyConfig?.company.bookingLink || undefined;
+
         const slug = nameToSlug(input.name, input.firstName, input.lastName, companyName);
 
-        const ALLOWED_PIPELINE_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"]; // epoxy shelved
+        const ALLOWED_PIPELINE_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile", "cabinet"];
         let afterUrl: string;
         if (input.afterUrl) {
           afterUrl = input.afterUrl;
@@ -207,7 +233,7 @@ export const appRouter = router({
           hardwareReplacement: input.hardwareReplacement,
           hardwareUpgrade: input.hardwareUpgrade,
           stripFee: input.stripFee,
-          bookingLink: input.bookingLink || COMPANY.bookingLink || undefined,
+          bookingLink,
           calendarEmbed: input.calendarEmbed,
           slug,
           email: input.email,
@@ -217,15 +243,48 @@ export const appRouter = router({
           notes: input.notes,
           status: "New Lead",
           companyName,
-          companyLogoUrl: input.companyLogoUrl || COMPANY.logoUrl || undefined,
+          companyLogoUrl,
+          companyId,
+          companySlug,
         });
         if (!estimate) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to save estimate" });
+
+        // ── Usage metering (non-blocking) ──
+        if (companyId) {
+          try {
+            const mapping = getCompanyStripeMapping(companyId);
+            if (mapping?.stripeSubscriptionId && mapping.stripeSubscriptionItemId && mapping.stripeCustomerId) {
+              const stripe = getStripe();
+              const sub = await stripe.subscriptions.retrieve(mapping.stripeSubscriptionId);
+              const periodStart = sub.current_period_start;
+              const periodEnd = sub.current_period_end;
+
+              const { metered, sequenceNum } = meterEstimateIfNeeded(
+                companyId, estimate.id, slug, periodStart, periodEnd
+              );
+
+              if (metered) {
+                console.log(`[Usage] Estimate #${sequenceNum} "${slug}" exceeds free tier — reporting to Stripe`);
+                const recordId = await reportStripeUsageEvent(mapping.stripeSubscriptionItemId, slug, mapping.stripeCustomerId);
+                if (recordId) {
+                  markUsageEventReported(slug, recordId);
+                }
+              } else {
+                console.log(`[Usage] Estimate #${sequenceNum} "${slug}" — within free tier or already reported`);
+              }
+            }
+          } catch (meterErr: any) {
+            console.error(`[Usage] Metering failed for "${slug}" — estimate still saved:`, meterErr?.message);
+          }
+        }
 
         return { slug, estimate };
       }),
 
-    list: adminGateProcedure.query(() => {
-      const all = getAllEstimates();
+    /** List estimates — filtered to the authenticated user's company */
+    list: adminGateProcedure.query(({ ctx }) => {
+      const companyId = (ctx as any).companyId as number;
+      const all = getEstimatesByCompanyId(companyId);
       // Strip heavy image data from list responses to keep payloads small
       return all.map(({ beforeUrl, afterUrl, transformationImageUrl, calendarEmbed, ...rest }) => ({
         ...rest,
@@ -241,17 +300,22 @@ export const appRouter = router({
         id: z.number(),
         status: z.enum(["New Lead", "Estimate Sent", "Appointment Booked", "Completed"]),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const companyId = (ctx as any).companyId as number;
+        // Verify the estimate belongs to this company before updating
+        const db = await import("./db");
+        const est = db.getEstimatesByCompanyId(companyId).find(e => e.id === input.id);
+        if (!est) throw new TRPCError({ code: "NOT_FOUND", message: "Estimate not found" });
         updateEstimateStatus(input.id, input.status);
         return { success: true };
       }),
 
+    /** Public: fetch single estimate by slug (customer-facing — no auth required) */
     bySlug: publicProcedure
       .input(z.object({ slug: z.string().min(1) }))
       .query(async ({ input }) => {
         const estimate = getEstimateBySlug(input.slug);
         if (!estimate) throw new TRPCError({ code: "NOT_FOUND", message: "Estimate not found" });
-        // Replace data URIs with image endpoint URLs to keep JSON response small
         return {
           ...estimate,
           beforeUrl: estimate.beforeUrl?.startsWith("data:") ? `/api/image/${input.slug}/beforeUrl` : estimate.beforeUrl,

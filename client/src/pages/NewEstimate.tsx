@@ -2,7 +2,7 @@ import { useRef, useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, ImageIcon, Copy, Check, Link2, Mail, MessageSquare, ExternalLink, Camera } from "lucide-react";
-import { COMPANY, MESSAGING, EPOXY_PAGE, ESTIMATE_PAGE } from "../../../esticlose.config";
+import { useCompanyConfig } from "../contexts/CompanyConfigContext";
 import cabinetColors from "../../../data/cabinetColors.json";
 
 type CabinetColor = { brand: string; code: string; name: string };
@@ -26,7 +26,7 @@ const SERVICE_TYPE_MAP: Record<string, string> = {
   "Cabinet Refinishing": "cabinet",
 };
 
-const DEFAULT_PRICES = COMPANY.defaultPrices;
+// DEFAULT_PRICES is set inside the component via useCompanyConfig
 
 const DURATIONS = ["3 Hours", "4 Hours", "5 Hours", "6 Hours", "Full Day"];
 
@@ -70,6 +70,9 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function NewEstimate() {
+  const { company: COMPANY, estimatePage: ESTIMATE_PAGE, epoxyPage: EPOXY_PAGE, messaging: MESSAGING } = useCompanyConfig();
+  const DEFAULT_PRICES = COMPANY.defaultPrices;
+
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");

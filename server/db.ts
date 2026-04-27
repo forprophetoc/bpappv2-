@@ -1,15 +1,15 @@
 import path from "path";
 import Database from "better-sqlite3";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { estimates, InsertEstimate, InsertUser, users } from "../drizzle/schema";
+import { estimates, usageEvents, InsertEstimate, InsertUser, users, companies, adminUsers, InsertCompany, InsertAdminUser } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _initRan = false;
 
 /**
- * Ensure core tables exist then add V3 columns.
+ * Ensure core tables exist then add V3+ columns.
  * Safe to call multiple times — CREATE IF NOT EXISTS + ALTER ignores dupes.
  */
 function ensureSchema(sqlite: InstanceType<typeof Database>) {
@@ -47,6 +47,39 @@ function ensureSchema(sqlite: InstanceType<typeof Database>) {
     );
   `);
 
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS companies (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      slug      TEXT    NOT NULL UNIQUE,
+      name      TEXT    NOT NULL,
+      createdAt INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+  `);
+
+  // ── V4 migration: Stripe mapping columns on companies ──
+  const companyStripeColumns = [
+    "stripeCustomerId text",
+    "stripeSubscriptionId text",
+    "stripeSubscriptionItemId text",
+  ];
+  for (const col of companyStripeColumns) {
+    try {
+      sqlite.exec(`ALTER TABLE companies ADD COLUMN ${col}`);
+    } catch (_e: unknown) {
+      // Column already exists — safe to ignore
+    }
+  }
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS admin_users (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      email     TEXT    NOT NULL UNIQUE,
+      password  TEXT    NOT NULL,
+      companyId INTEGER NOT NULL,
+      createdAt INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+  `);
+
   // ── V3 migration: add columns that may not exist yet ──
   const columns = [
     "firstName text",
@@ -64,7 +97,6 @@ function ensureSchema(sqlite: InstanceType<typeof Database>) {
     "notes text",
     "status text DEFAULT 'New Lead'",
     "viewedAt integer",
-    // ghlContactId removed — no GHL dependency
     "companyName text",
     // Epoxy fields
     "baseColor text",
@@ -79,6 +111,11 @@ function ensureSchema(sqlite: InstanceType<typeof Database>) {
     "hardwareUpgrade integer",
     // Strip fee
     "stripFee integer",
+    // Multi-tenant isolation
+    "companyId integer",
+    "companySlug text",
+    // Immutable insertion timestamp for billing cycle counting (NULL default for ALTER TABLE compat)
+    "insertedAt integer",
   ];
   for (const col of columns) {
     try {
@@ -87,6 +124,25 @@ function ensureSchema(sqlite: InstanceType<typeof Database>) {
       // Column already exists — safe to ignore
     }
   }
+
+  // ── V5 migration: usage_events table for metered billing ──
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS usage_events (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      companyId           INTEGER NOT NULL,
+      estimateId          INTEGER NOT NULL,
+      estimateSlug        TEXT    NOT NULL UNIQUE,
+      sequenceNum         INTEGER NOT NULL,
+      periodStart         INTEGER NOT NULL,
+      periodEnd           INTEGER NOT NULL,
+      stripeUsageRecordId TEXT,
+      reportedAt          INTEGER,
+      createdAt           INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+  `);
+
+  // Backfill insertedAt for existing rows that have NULL
+  sqlite.exec(`UPDATE estimates SET insertedAt = createdAt WHERE insertedAt IS NULL`);
 }
 
 const DEFAULT_DB_URL = "file:./sqlite.db";
@@ -100,9 +156,6 @@ export function getDb() {
   if (!_db) {
     try {
       const url = process.env.DATABASE_URL || DEFAULT_DB_URL;
-      // Strip the "file:" prefix then resolve relative paths against the
-      // project root (one level above this file) so the path is always
-      // absolute and independent of process.cwd().
       const rawPath = url.startsWith("file:") ? url.slice(5) : url;
       const filePath = path.isAbsolute(rawPath)
         ? rawPath
@@ -118,6 +171,64 @@ export function getDb() {
   }
   return _db;
 }
+
+// ── Companies ──
+
+export function getCompanyBySlug(slug: string) {
+  const db = getDb();
+  if (!db) return undefined;
+  const result = db.select().from(companies).where(eq(companies.slug, slug)).limit(1).all();
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export function getCompanyById(id: number) {
+  const db = getDb();
+  if (!db) return undefined;
+  const result = db.select().from(companies).where(eq(companies.id, id)).limit(1).all();
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export function upsertCompany(data: InsertCompany) {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+  db.insert(companies)
+    .values(data)
+    .onConflictDoUpdate({ target: companies.slug, set: { name: data.name } })
+    .run();
+  return getCompanyBySlug(data.slug!);
+}
+
+export function updateCompanyStripeMapping(companyId: number, mapping: {
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  stripeSubscriptionItemId: string;
+}) {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+  db.update(companies)
+    .set(mapping)
+    .where(eq(companies.id, companyId))
+    .run();
+  console.log(`[Database] Updated Stripe mapping for company ${companyId}: sub=${mapping.stripeSubscriptionId}, item=${mapping.stripeSubscriptionItemId}`);
+}
+
+// ── Admin Users ──
+
+export function getAdminUserByEmail(email: string) {
+  const db = getDb();
+  if (!db) return undefined;
+  const result = db.select().from(adminUsers).where(eq(adminUsers.email, email)).limit(1).all();
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export function createAdminUser(data: InsertAdminUser) {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+  db.insert(adminUsers).values(data).run();
+  return getAdminUserByEmail(data.email);
+}
+
+// ── OAuth Users (unchanged) ──
 
 export function upsertUser(user: InsertUser): void {
   if (!user.openId) throw new Error("User openId is required for upsert");
@@ -175,6 +286,8 @@ export function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+// ── Slug Generation ──
+
 function normalize(str: string): string {
   return str
     .toLowerCase()
@@ -186,7 +299,6 @@ function normalize(str: string): string {
 
 /**
  * Build a URL-safe slug: {company-name}-{customer-name}-{MMDD}
- * Falls back to {customer-name}-{MMDD} if company not provided.
  * Appends numeric suffix if duplicate exists.
  */
 export function nameToSlug(
@@ -215,7 +327,6 @@ export function nameToSlug(
   }
   const slug = base;
 
-  // Check for duplicates and append suffix
   const db = getDb();
   if (!db) return slug;
   const existing = db
@@ -226,7 +337,6 @@ export function nameToSlug(
     .all();
   if (existing.length === 0) return slug;
 
-  // Find next available suffix
   for (let i = 2; i < 100; i++) {
     const candidate = `${slug}-${i}`;
     const dup = db
@@ -240,6 +350,8 @@ export function nameToSlug(
   return `${slug}-${Date.now()}`;
 }
 
+// ── Estimates (with companyId isolation) ──
+
 /**
  * Create or update an estimate record. Returns the saved estimate.
  */
@@ -248,7 +360,7 @@ export function upsertEstimate(data: InsertEstimate) {
   if (!db) throw new Error("Database not available");
 
   db.insert(estimates)
-    .values(data)
+    .values({ ...data, insertedAt: new Date() })
     .onConflictDoUpdate({
       target: estimates.slug,
       set: {
@@ -283,6 +395,8 @@ export function upsertEstimate(data: InsertEstimate) {
         status: data.status,
         companyName: data.companyName,
         companyLogoUrl: data.companyLogoUrl,
+        companyId: data.companyId,
+        companySlug: data.companySlug,
       },
     })
     .run();
@@ -299,7 +413,14 @@ export function getEstimateBySlug(slug: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-/** Fetch all estimates, newest first. */
+/** Fetch all estimates for a specific company, newest first. */
+export function getEstimatesByCompanyId(companyId: number) {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+  return db.select().from(estimates).where(eq(estimates.companyId, companyId)).orderBy(desc(estimates.createdAt)).all();
+}
+
+/** Fetch all estimates, newest first (legacy — for backward compat during migration). */
 export function getAllEstimates() {
   const db = getDb();
   if (!db) throw new Error("Database not available");
@@ -337,3 +458,141 @@ export function markEstimateViewed(slug: string): { alreadyViewed: boolean; esti
   return { alreadyViewed: false, estimate: { ...estimate, viewedAt: now, status: "Estimate Sent" } };
 }
 
+// ── Image Retention ──
+
+/**
+ * Clear image data from estimates older than 90 days.
+ * Replaces beforeUrl/afterUrl with empty string for data: URIs,
+ * or deletes S3 keys (caller handles S3 deletion).
+ * Returns list of S3 URLs that need external deletion.
+ */
+export function clearExpiredImages(): string[] {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const expired = db.select().from(estimates)
+    .where(lt(estimates.createdAt, cutoff))
+    .all();
+
+  const s3UrlsToDelete: string[] = [];
+
+  for (const est of expired) {
+    const updates: Record<string, string | null> = {};
+
+    if (est.beforeUrl) {
+      if (est.beforeUrl.startsWith("data:")) {
+        updates.beforeUrl = "";
+      } else if (est.beforeUrl.includes("s3.")) {
+        s3UrlsToDelete.push(est.beforeUrl);
+        updates.beforeUrl = "";
+      }
+    }
+
+    if (est.afterUrl) {
+      if (est.afterUrl.startsWith("data:")) {
+        updates.afterUrl = "";
+      } else if (est.afterUrl.includes("s3.")) {
+        s3UrlsToDelete.push(est.afterUrl);
+        updates.afterUrl = "";
+      }
+    }
+
+    if (est.transformationImageUrl) {
+      if (est.transformationImageUrl.startsWith("data:")) {
+        updates.transformationImageUrl = "";
+      } else if (est.transformationImageUrl.includes("s3.")) {
+        s3UrlsToDelete.push(est.transformationImageUrl);
+        updates.transformationImageUrl = "";
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      db.update(estimates).set(updates as any).where(eq(estimates.id, est.id)).run();
+    }
+  }
+
+  return s3UrlsToDelete;
+}
+
+// ── Usage Metering ──
+
+const FREE_TIER_LIMIT = 100;
+
+/**
+ * Atomically check whether a new estimate should be metered.
+ * Runs inside an IMMEDIATE transaction to prevent race conditions.
+ * Returns { metered: true, sequenceNum } if billable, or { metered: false } if free tier / already reported.
+ */
+export function meterEstimateIfNeeded(
+  companyId: number,
+  estimateId: number,
+  estimateSlug: string,
+  periodStart: number,
+  periodEnd: number,
+): { metered: boolean; sequenceNum: number } {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Use raw SQLite transaction with IMMEDIATE isolation for concurrency safety
+  const sqlite = (db as any).session?.client;
+  if (!sqlite) throw new Error("Cannot access raw SQLite client for transaction");
+
+  const result = sqlite.transaction(() => {
+    // Count estimates in this billing period using immutable insertedAt
+    const countRow = sqlite.prepare(
+      `SELECT COUNT(*) as cnt FROM estimates WHERE companyId = ? AND insertedAt >= ? AND insertedAt < ?`
+    ).get(companyId, periodStart, periodEnd) as { cnt: number };
+
+    const sequenceNum = countRow.cnt;
+
+    // Free tier — no metering needed
+    if (sequenceNum <= FREE_TIER_LIMIT) {
+      return { metered: false, sequenceNum };
+    }
+
+    // Check if already reported (dedup)
+    const existing = sqlite.prepare(
+      `SELECT id FROM usage_events WHERE estimateSlug = ?`
+    ).get(estimateSlug) as { id: number } | undefined;
+
+    if (existing) {
+      return { metered: false, sequenceNum };
+    }
+
+    // Insert usage event row (UNIQUE on estimateSlug prevents duplicates)
+    sqlite.prepare(
+      `INSERT INTO usage_events (companyId, estimateId, estimateSlug, sequenceNum, periodStart, periodEnd) VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(companyId, estimateId, estimateSlug, sequenceNum, periodStart, periodEnd);
+
+    return { metered: true, sequenceNum };
+  }).immediate();
+
+  return result as { metered: boolean; sequenceNum: number };
+}
+
+/**
+ * Mark a usage event as successfully reported to Stripe.
+ */
+export function markUsageEventReported(estimateSlug: string, stripeUsageRecordId: string) {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+  db.update(usageEvents)
+    .set({ stripeUsageRecordId, reportedAt: new Date() })
+    .where(eq(usageEvents.estimateSlug, estimateSlug))
+    .run();
+}
+
+/**
+ * Get the Stripe mapping for a company by ID.
+ */
+export function getCompanyStripeMapping(companyId: number) {
+  const db = getDb();
+  if (!db) return undefined;
+  const result = db.select({
+    stripeCustomerId: companies.stripeCustomerId,
+    stripeSubscriptionId: companies.stripeSubscriptionId,
+    stripeSubscriptionItemId: companies.stripeSubscriptionItemId,
+  }).from(companies).where(eq(companies.id, companyId)).limit(1).all();
+  return result.length > 0 ? result[0] : undefined;
+}

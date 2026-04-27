@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
+export default function LoginPage({ onSuccess }: { onSuccess: (companySlug: string) => void }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,12 +16,13 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
-      if (res.ok) {
-        onSuccess();
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onSuccess(data.companySlug);
       } else {
-        setError("Incorrect password");
+        setError(data.error || "Invalid credentials");
       }
     } catch {
       setError("Something went wrong");
@@ -34,12 +36,19 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
         <h1 className="text-2xl font-bold text-center">Admin Login</h1>
         <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          autoFocus
+        />
+        <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
           className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          autoFocus
         />
         {error && <p className="text-sm text-red-500 text-center">{error}</p>}
         <Button type="submit" className="w-full" disabled={loading}>

@@ -17,4 +17,8 @@ export const ENV = {
   awsEndpoint: process.env.AWS_ENDPOINT ?? "",   // optional — leave blank for standard AWS S3
   publicUrl: process.env.PUBLIC_URL ?? "https://esticlose.com",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
+  // Stripe
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+  stripeUsagePriceId: process.env.STRIPE_USAGE_PRICE_ID ?? "",
 };

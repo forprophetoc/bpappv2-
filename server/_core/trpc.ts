@@ -2,7 +2,7 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
-import { isAdminAuthenticated } from "./adminAuth";
+import { getAdminSession, isAdminAuthenticated } from "./adminAuth";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -28,11 +28,23 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
+/**
+ * Admin gate middleware — verifies admin session and injects companyId/companySlug into context.
+ */
 const requireAdminGate = t.middleware(async ({ ctx, next }) => {
-  if (!(await isAdminAuthenticated(ctx.req))) {
+  const session = await getAdminSession(ctx.req);
+  if (!session) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin login required" });
   }
-  return next({ ctx });
+  return next({
+    ctx: {
+      ...ctx,
+      companyId: session.companyId,
+      companySlug: session.companySlug,
+      adminUserId: session.userId,
+      adminEmail: session.email,
+    },
+  });
 });
 
 export const adminGateProcedure = t.procedure.use(requireAdminGate);

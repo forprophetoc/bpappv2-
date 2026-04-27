@@ -6,7 +6,7 @@ import {
   Phone,
   LogOut,
 } from "lucide-react";
-import { COMPANY } from "../../../esticlose.config";
+import { useCompanyConfig } from "../contexts/CompanyConfigContext";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { company: COMPANY } = useCompanyConfig();
 
   return (
     <div className="flex min-h-screen bg-[#f0f4f8]">
