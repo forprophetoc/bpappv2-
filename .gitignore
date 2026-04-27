@@ -3,3 +3,22 @@ dist
 *.db
 .env
 .env.local
+
+# --- V4 preservation guards (added 2026-04-27) ---
+# Block legacy archives and zips from being staged accidentally.
+# Remove an entry only if you have decided that folder is part of V4.
+*.zip
+BP/
+BP - Copy/
+bathtubappv2/
+bathtubappv2-tier2-staging/
+
+# Runtime-generated tenant configs (DB-backed in V4, not committed).
+config/dev/
+
+# Stray root-level images and uploads.
+LOGO.png
+Gemini_Generated_Image_*.png
+*_Onboarding_FINAL.zip
+*_Onboarding_Videos_FINAL*.zip
+"V3 Working.zip"
