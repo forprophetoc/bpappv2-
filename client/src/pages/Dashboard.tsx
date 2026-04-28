@@ -28,6 +28,8 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Dashboard() {
   const utils = trpc.useUtils();
   const { data: jobs } = trpc.estimates.list.useQuery();
+  const { data: companies } = trpc.companies.list.useQuery();
+  const companySlug = companies?.[0]?.slug;
   const updateStatus = trpc.estimates.updateStatus.useMutation({
     onSuccess: () => utils.estimates.list.invalidate(),
   });
@@ -49,13 +51,15 @@ export default function Dashboard() {
             Welcome back — here's what's happening today.
           </p>
         </div>
-        <Link
-          href="/new-estimate"
-          className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm"
-        >
-          <FilePlus className="h-4 w-4" />
-          New Estimate
-        </Link>
+        {companySlug && (
+          <Link
+            href={`/new-estimate/${companySlug}`}
+            className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm"
+          >
+            <FilePlus className="h-4 w-4" />
+            New Estimate
+          </Link>
+        )}
       </div>
 
       {/* Stat cards */}
@@ -68,7 +72,7 @@ export default function Dashboard() {
 
       {/* Action cards */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <Link href="/new-estimate" className="block">
+        <Link href={companySlug ? `/new-estimate/${companySlug}` : "#"} className="block">
           <ActionCard
             icon={FilePlus}
             iconBg="bg-green-100"
@@ -123,9 +127,10 @@ export default function Dashboard() {
             const statusClass = STATUS_COLORS[status] || STATUS_COLORS["New Lead"];
 
             return (
-              <div
+              <Link
+                href={`/estimate/${companySlug}/${job.slug}`}
                 key={job.id}
-                className="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 transition-colors block"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold text-sm">
@@ -146,6 +151,7 @@ export default function Dashboard() {
                   </span>
                   <select
                     value={status}
+                    onClick={(e) => e.stopPropagation()}
                     onChange={(e) => updateStatus.mutate({ id: job.id, status: e.target.value as any })}
                     className={`text-xs font-medium px-2 py-1 rounded-full border-none outline-none cursor-pointer ${statusClass}`}
                   >
@@ -164,7 +170,7 @@ export default function Dashboard() {
                     </span>
                   ) : null}
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
