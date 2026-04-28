@@ -78,22 +78,11 @@ async function startServer() {
       res.status(500).json({ error: err?.message || "Upload failed" });
     }
   });
-  // Image proxy — serves S3 objects via SDK (no public bucket needed)
-  app.get("/api/images/*", async (req, res) => {
-    if (!isS3Configured()) {
-      return res.status(503).send("S3 not configured");
-    }
+  // 301 redirect — old proxy URLs now go straight to S3
+  app.get("/api/images/*", (req, res) => {
     const key = req.params[0];
     if (!key) return res.status(400).send("Missing key");
-    try {
-      const { buffer, contentType } = await getObjectFromS3(key);
-      res.set("Content-Type", contentType);
-      res.set("Cache-Control", "public, max-age=31536000, immutable");
-      res.send(buffer);
-    } catch (err: any) {
-      console.error("[image-proxy] Failed:", key, err?.message);
-      res.status(404).send("Image not found");
-    }
+    res.redirect(301, `https://bathtub-pros-images.s3.us-east-2.amazonaws.com/${key}`);
   });
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);

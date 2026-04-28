@@ -42,10 +42,7 @@ function getS3Client(): S3Client {
 }
 
 function buildPublicS3Url(_bucket: string, _region: string, key: string): string {
-  // Route through the server image proxy (/api/images/*) so the browser
-  // never hits S3 directly — the bucket is private.
-  const publicUrl = process.env.PUBLIC_URL?.replace(/\/+$/, "") || "";
-  return `${publicUrl}/api/images/${key}`;
+  return `https://bathtub-pros-images.s3.us-east-2.amazonaws.com/${key}`;
 }
 
 export async function uploadGeneratedImageToS3(params: {
