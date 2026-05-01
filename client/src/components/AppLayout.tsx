@@ -6,8 +6,6 @@ import {
   Calendar,
   Phone,
   LogOut,
-  Building2,
-  ClipboardCheck,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -15,8 +13,6 @@ const NAV_ITEMS = [
   { label: "New Estimate", href: "/new-estimate", icon: FilePlus },
   { label: "All Jobs", href: "/all-jobs", icon: Briefcase },
   { label: "Calendar", href: "/calendar", icon: Calendar },
-  { label: "Onboard Company", href: "/onboard", icon: Building2 },
-  { label: "Onboarding Audit", href: "/audit", icon: ClipboardCheck },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -38,7 +34,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Nav */}
         <nav className="flex-1 px-2 space-y-0.5">
           {NAV_ITEMS.map((item) => {
-            const active = item.href === "/" ? location === "/" : location.startsWith(item.href);
+            const active = location === item.href;
             return (
               <Link
                 key={item.href}

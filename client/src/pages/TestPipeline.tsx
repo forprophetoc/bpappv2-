@@ -109,7 +109,7 @@ export default function TestPipeline() {
         mimeType: slot.file.type || "image/png",
       });
       updateSlot(slot.id, {
-        status: result.status,
+        status: (result.status === "skipped" ? "failed" : result.status) as SlotStatus,
         afterUrl: result.afterUrl,
         error: result.error,
       });

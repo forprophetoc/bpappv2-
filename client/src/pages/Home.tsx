@@ -41,8 +41,9 @@ export default function Home() {
     },
   });
 
+  const publicBase = (import.meta.env.VITE_PUBLIC_URL || "https://estimator.bathtubpros.com").replace(/\/+$/, "");
   const estimateUrl = generatedSlug
-    ? `${window.location.origin}/estimate/${generatedSlug}`
+    ? `${publicBase}/estimate/${generatedSlug}`
     : null;
 
   const slugPreview = name ? nameToSlugPreview(name) : "";
@@ -62,7 +63,6 @@ export default function Home() {
       ...(email.trim() ? { email: email.trim() } : {}),
       ...(companyLogoUrl.trim() ? { companyLogoUrl: companyLogoUrl.trim() } : {}),
       ...(ghlContactId.trim() ? { ghlContactId: ghlContactId.trim() } : {}),
-      bookingLink: "https://api.leadconnectorhq.com/widget/booking/Pbt4MIKvOcDf1sLjqaMS",
     });
   }
 

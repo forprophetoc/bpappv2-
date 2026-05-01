@@ -28,8 +28,6 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Dashboard() {
   const utils = trpc.useUtils();
   const { data: jobs } = trpc.estimates.list.useQuery();
-  const { data: companies } = trpc.companies.list.useQuery();
-  const companySlug = companies?.[0]?.slug;
   const updateStatus = trpc.estimates.updateStatus.useMutation({
     onSuccess: () => utils.estimates.list.invalidate(),
   });
@@ -42,28 +40,27 @@ export default function Dashboard() {
   const recentJobs = allJobs.slice(0, 5);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-6 sm:mb-8 gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
             Welcome back — here's what's happening today.
           </p>
         </div>
-        {companySlug && (
-          <Link
-            href={`/new-estimate/${companySlug}`}
-            className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm"
-          >
-            <FilePlus className="h-4 w-4" />
-            New Estimate
-          </Link>
-        )}
+        <Link
+          href="/new-estimate"
+          className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-4 sm:px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm shrink-0"
+        >
+          <FilePlus className="h-4 w-4" />
+          <span className="hidden sm:inline">New Estimate</span>
+          <span className="sm:hidden">New</span>
+        </Link>
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <StatCard label="NEW LEADS" value={newLeads} icon={TrendingUp} iconColor="text-blue-500" iconBg="bg-blue-100" />
         <StatCard label="ESTIMATES SENT" value={estimatesSent} icon={FileText} iconColor="text-orange-500" iconBg="bg-orange-100" />
         <StatCard label="BOOKED" value={booked} icon={CalendarCheck} iconColor="text-green-500" iconBg="bg-green-100" />
@@ -71,8 +68,8 @@ export default function Dashboard() {
       </div>
 
       {/* Action cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <Link href={companySlug ? `/new-estimate/${companySlug}` : "#"} className="block">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+        <Link href="/new-estimate" className="block">
           <ActionCard
             icon={FilePlus}
             iconBg="bg-green-100"
@@ -128,37 +125,42 @@ export default function Dashboard() {
 
             return (
               <Link
-                href={`/estimate/${companySlug}/${job.slug}`}
                 key={job.id}
-                className="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 transition-colors block"
+                href={`/estimate/${job.slug}`}
+                className="block px-4 sm:px-6 py-3.5 hover:bg-gray-50 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold text-sm">
-                    {initials}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold text-sm shrink-0">
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {displayName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {job.service} · {job.duration || "3 Hours"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {displayName}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {job.service} · {job.duration || "3 Hours"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="text-sm font-semibold text-gray-900 shrink-0">
                     ${job.price.toLocaleString()}
                   </span>
-                  <select
-                    value={status}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => updateStatus.mutate({ id: job.id, status: e.target.value as any })}
-                    className={`text-xs font-medium px-2 py-1 rounded-full border-none outline-none cursor-pointer ${statusClass}`}
-                  >
-                    {JOB_STATUSES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                </div>
+                <div className="flex items-center gap-2 mt-2 ml-12">
+                  {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
+                  <span onClick={(e) => e.preventDefault()}>
+                    <select
+                      value={status}
+                      onChange={(e) => { e.preventDefault(); updateStatus.mutate({ id: job.id, status: e.target.value as any }); }}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`text-xs font-medium px-2 py-1 rounded-full border-none outline-none cursor-pointer ${statusClass}`}
+                    >
+                      {JOB_STATUSES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </span>
                   {status === "Appointment Booked" ? (
                     <span className="flex items-center gap-0.5 text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">
                       <DollarSign className="h-3 w-3" />

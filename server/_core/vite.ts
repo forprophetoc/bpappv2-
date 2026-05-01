@@ -20,19 +20,9 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  app.use((req, res, next) => {
-    if (req.originalUrl.startsWith("/api/") || req.originalUrl === "/health") {
-      return next();
-    }
-    vite.middlewares(req, res, next);
-  });
+  app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
-
-    // Skip API routes — let Express handlers respond
-    if (url.startsWith("/api/") || url === "/health") {
-      return next();
-    }
 
     try {
       const clientTemplate = path.resolve(

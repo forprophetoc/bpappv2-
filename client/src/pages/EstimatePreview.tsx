@@ -17,6 +17,7 @@ import {
   BadgeDollarSign,
   MapPin,
 } from "lucide-react";
+import { BOOKING_LINKS_BY_DURATION, buildBookingUrl } from "@shared/const";
 
 type ServiceType = "bathtub" | "shower" | "jacuzzi";
 
@@ -31,6 +32,7 @@ const TEST_ESTIMATES: Record<ServiceType, TestEstimate> = {
     firstName: "Jane",
     name: "Jane Smith",
     serviceType: "bathtub",
+    duration: "3 Hours",
     price: 875,
     beforeUrl:
       "https://bathtub-pros-images.s3.us-east-1.amazonaws.com/generated/1744739498498-f3a5e2f3-0530-4aed-b70e-9d7bb389e38d.png",
@@ -41,13 +43,14 @@ const TEST_ESTIMATES: Record<ServiceType, TestEstimate> = {
     transformationPrice: 275,
     bathroomSinkPrice: 225,
     kitchenSinkPrice: 250,
-    bookingLink: "https://api.leadconnectorhq.com/widget/booking/Pbt4MIKvOcDf1sLjqaMS",
+    bookingLink: "https://bathtubpros.com/book",
     calendarEmbed: null,
   },
   shower: {
     firstName: "Mike",
     name: "Mike Johnson",
     serviceType: "shower",
+    duration: "3 Hours",
     price: 750,
     beforeUrl:
       "https://bathtub-pros-images.s3.us-east-1.amazonaws.com/generated/1744739498498-f3a5e2f3-0530-4aed-b70e-9d7bb389e38d.png",
@@ -64,6 +67,7 @@ const TEST_ESTIMATES: Record<ServiceType, TestEstimate> = {
     firstName: "Sarah",
     name: "Sarah Williams",
     serviceType: "jacuzzi",
+    duration: "3 Hours",
     price: 1200,
     beforeUrl:
       "https://bathtub-pros-images.s3.us-east-1.amazonaws.com/generated/1744739498498-f3a5e2f3-0530-4aed-b70e-9d7bb389e38d.png",
@@ -82,6 +86,7 @@ interface TestEstimate {
   firstName: string;
   name: string;
   serviceType: ServiceType;
+  duration: string;
   price: number;
   beforeUrl: string;
   afterUrl: string;
@@ -208,26 +213,28 @@ function EstimatePageContent({ estimate }: { estimate: TestEstimate }) {
         <h2 className="text-xl font-bold text-gray-900 text-center mb-4">
           Your Before & After
         </h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Before
-            </p>
-            <img
-              src={estimate.beforeUrl}
-              alt="Before"
-              className="rounded-xl border border-gray-200 w-full h-56 object-cover bg-gray-100"
-            />
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              After
-            </p>
-            <img
-              src={estimate.afterUrl}
-              alt="After"
-              className="rounded-xl border border-gray-200 w-full h-56 object-cover bg-gray-100"
-            />
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-md p-5">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                Before
+              </p>
+              <img
+                src={estimate.beforeUrl}
+                alt="Before"
+                className="rounded-xl border border-gray-200 w-full h-60 object-cover bg-gray-100"
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                After
+              </p>
+              <img
+                src={estimate.afterUrl}
+                alt="After"
+                className="rounded-xl border border-gray-200 w-full h-60 object-cover bg-gray-100"
+              />
+            </div>
           </div>
         </div>
 
@@ -503,9 +510,9 @@ function EstimatePageContent({ estimate }: { estimate: TestEstimate }) {
               ${totalPrice.toLocaleString()}
             </p>
           </div>
-          {estimate.bookingLink ? (
+          {(BOOKING_LINKS_BY_DURATION[estimate.duration] || estimate.bookingLink) ? (
             <a
-              href={estimate.bookingLink}
+              href={buildBookingUrl(estimate.duration, { firstName: estimate.firstName, lastName: null, email: null, phone: null }, estimate.bookingLink || "")}
               target="_blank"
               rel="noreferrer"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-full text-sm transition-colors shadow"
@@ -612,10 +619,10 @@ function EstimatePageContent({ estimate }: { estimate: TestEstimate }) {
           Book online or give us a call — we're ready when you are.
         </p>
 
-        {estimate.bookingLink ? (
+        {(BOOKING_LINKS_BY_DURATION[estimate.duration] || estimate.bookingLink) ? (
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
             <a
-              href={estimate.bookingLink}
+              href={buildBookingUrl(estimate.duration, { firstName: estimate.firstName, lastName: null, email: null, phone: null }, estimate.bookingLink || "")}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-8 py-3 rounded-full text-base hover:bg-blue-50 transition-colors shadow"

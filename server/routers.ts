@@ -7,139 +7,14 @@ import { generateImage } from "./_core/imageGeneration";
 import { isS3Configured, uploadGeneratedImageToS3 } from "./_core/s3";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { getAllEstimates, getEstimateBySlug, markEstimateViewed, nameToSlug, updateEstimateStatus, upsertEstimate } from "./db";
-import { writeCompanyConfig, readCompanyConfig, listCompanyConfigs, companySlug } from "./_core/configWriter";
+import { getStripe } from "./_core/stripe";
+import { reportStripeUsageEvent } from "./_core/stripe";
+import { submitEstimateToGHL, submitEstimateViewedToGHL } from "./_core/ghlNotify";
+import { incrementUsage } from "./usage";
+import { getAllEstimates, getCompanyStripeMapping, getEstimateBySlug, markEstimateViewed, markUsageEventReported, meterEstimateIfNeeded, nameToSlug, updateEstimateStatus, upsertEstimate } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
-
-  /**
-   * Company onboarding — creates a file-based brand config for a new customer.
-   * Config is written to configs/{slug}.json on disk.
-   */
-  companies: router({
-    create: publicProcedure
-      .input(
-        z.object({
-          companyName: z.string().min(1),
-          companyShortCode: z.string().min(1).max(10),
-          phone: z.string().min(1),
-          phoneTel: z.string().min(1),
-          email: z.string().optional(),
-          website: z.string().optional(),
-          serviceArea: z.string().min(1),
-          trustStat: z.string().optional().default(""),
-          trustTagline: z.string().optional().default(""),
-          warrantyLabel: z.string().optional().default(""),
-          warrantyDetail: z.string().optional().default(""),
-          heroTitle: z.string().optional(),
-          heroSubtext: z.string().optional().default(""),
-          basePrice: z.number().optional(),
-          planName: z.string().optional(),
-          ctaText: z.string().optional(),
-          comparisonTitle: z.string().optional().default(""),
-          comparisonUsLabel: z.string().optional().default(""),
-          comparisonUsPoints: z.array(z.string()).optional().default([]),
-          comparisonThemLabel: z.string().optional().default(""),
-          comparisonThemPoints: z.array(z.string()).optional().default([]),
-          benefits: z.array(z.object({ label: z.string(), sub: z.string() })).optional().default([]),
-          testimonials: z.array(z.object({ quote: z.string(), author: z.string() })).optional().default([]),
-          footerPromo: z.string().optional().default(""),
-          calendarUrl: z.string().optional().default(""),
-          bookingWidgetUrl: z.string().optional().default(""),
-          bookingWidgetId: z.string().optional().default(""),
-          companyLogoUrl: z.string().optional(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        const slug = companySlug(input.companyName);
-
-        // Check for duplicate
-        const existing = readCompanyConfig(slug);
-        if (existing) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: `Company config already exists for "${input.companyName}" (slug: ${slug})`,
-          });
-        }
-
-        const { filePath } = writeCompanyConfig(input);
-        console.log(`[companies.create] Created config for "${input.companyName}" at ${filePath}`);
-
-        return { slug, companyName: input.companyName };
-      }),
-
-    /** Update an existing company config (overwrites configs/{slug}.json). */
-    update: publicProcedure
-      .input(
-        z.object({
-          slug: z.string().min(1),
-          companyName: z.string().min(1),
-          companyShortCode: z.string().min(1).max(10),
-          phone: z.string().min(1),
-          phoneTel: z.string().min(1),
-          email: z.string().optional(),
-          website: z.string().optional(),
-          serviceArea: z.string().min(1),
-          trustStat: z.string().optional().default(""),
-          trustTagline: z.string().optional().default(""),
-          warrantyLabel: z.string().optional().default(""),
-          warrantyDetail: z.string().optional().default(""),
-          heroTitle: z.string().optional(),
-          heroSubtext: z.string().optional().default(""),
-          basePrice: z.number().optional(),
-          planName: z.string().optional(),
-          ctaText: z.string().optional(),
-          comparisonTitle: z.string().optional().default(""),
-          comparisonUsLabel: z.string().optional().default(""),
-          comparisonUsPoints: z.array(z.string()).optional().default([]),
-          comparisonThemLabel: z.string().optional().default(""),
-          comparisonThemPoints: z.array(z.string()).optional().default([]),
-          benefits: z.array(z.object({ label: z.string(), sub: z.string() })).optional().default([]),
-          testimonials: z.array(z.object({ quote: z.string(), author: z.string() })).optional().default([]),
-          footerPromo: z.string().optional().default(""),
-          calendarUrl: z.string().optional().default(""),
-          bookingWidgetUrl: z.string().optional().default(""),
-          bookingWidgetId: z.string().optional().default(""),
-          companyLogoUrl: z.string().optional(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        const { slug, ...config } = input;
-        const existing = readCompanyConfig(slug);
-        if (!existing) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: `No config found for slug: ${slug}`,
-          });
-        }
-
-        const { filePath } = writeCompanyConfig(config);
-        console.log(`[companies.update] Updated config for "${config.companyName}" at ${filePath}`);
-
-        return { slug, companyName: config.companyName };
-      }),
-
-    /** Get a company config by slug. */
-    bySlug: publicProcedure
-      .input(z.object({ slug: z.string().min(1) }))
-      .query(({ input }) => {
-        const config = readCompanyConfig(input.slug);
-        if (!config) {
-          throw new TRPCError({ code: "NOT_FOUND", message: `No config found for slug: ${input.slug}` });
-        }
-        return config;
-      }),
-
-    /** List all onboarded company slugs. */
-    list: publicProcedure.query(() => {
-      const slugs = listCompanyConfigs();
-      return slugs.map((slug) => {
-        const config = readCompanyConfig(slug);
-        return { slug, companyName: config?.companyName ?? slug };
-      });
-    }),
-  }),
 
   pipeline: router({
     /** Returns which API keys / services are configured — never exposes secrets */
@@ -165,7 +40,7 @@ export const appRouter = router({
       )
       .mutation(async ({ input }) => {
         // Service gating — only approved types may trigger the pipeline
-        const ALLOWED_SERVICE_TYPES = ["bathtub", "shower", "jacuzzi"];
+        const ALLOWED_SERVICE_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile"];
         if (input.serviceType && !ALLOWED_SERVICE_TYPES.includes(input.serviceType)) {
           return {
             afterUrl: null,
@@ -175,8 +50,8 @@ export const appRouter = router({
         }
 
         const result = await generateImage({
-          prompt:
-            "Refinish this bathtub to look brand new with a glossy, smooth, professional white finish. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear. The result should look like a freshly refinished bathtub in a real residential bathroom.",
+          prompt: "", // ignored — pipeline uses vertical-specific prompts
+          serviceType: input.serviceType,
           originalImages: [{ b64Json: input.imageBase64, mimeType: input.mimeType }],
         });
         if (!result.url) {
@@ -242,14 +117,16 @@ export const appRouter = router({
           firstName: z.string().optional(),
           lastName: z.string().optional(),
           service: z.string().min(1),
-          serviceType: z.enum(["bathtub", "shower", "jacuzzi"]).default("bathtub"),
+          serviceType: z.enum(["bathtub", "shower", "jacuzzi", "tub_tile"]).default("bathtub"),
           price: z.number().int().positive(),
-          beforeUrl: z.string().min(1),
+          beforeUrl: z.string().min(1).optional(),
           afterUrl: z.string().min(1).optional(),
           transformationImageUrl: z.string().url().optional(),
           transformationPrice: z.number().int().positive().optional(),
           bathroomSinkPrice: z.number().int().positive().optional(),
           kitchenSinkPrice: z.number().int().positive().optional(),
+          tileSurroundPrice: z.number().int().positive().optional(),
+          otherBathroomPrice: z.number().int().positive().optional(),
           bookingLink: z.string().optional(),
           calendarEmbed: z.string().optional(),
           ghlContactId: z.string().optional(),
@@ -258,45 +135,44 @@ export const appRouter = router({
           address: z.string().optional(),
           duration: z.string().optional(),
           notes: z.string().optional(),
-          companyName: z.string().optional(),
           companyLogoUrl: z.string().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
-        const slug = nameToSlug(input.name, input.firstName, input.lastName, input.companyName);
-
-        // Guard: reject data URIs in beforeUrl — only HTTPS URLs are allowed
-        if (input.beforeUrl.startsWith("data:")) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "beforeUrl must be an HTTPS URL, not a data URI. Upload the image to S3 first." });
-        }
+        const slug = nameToSlug(input.name, input.firstName, input.lastName);
 
         // 1. Use pre-generated afterUrl if provided (from pipeline.testImage),
         //    otherwise generate after image from the before photo (approved services only).
-        const ALLOWED_PIPELINE_TYPES = ["bathtub", "shower", "jacuzzi"];
+        const ALLOWED_PIPELINE_TYPES = ["bathtub", "shower", "jacuzzi", "tub_tile"];
         let afterUrl: string;
         if (input.afterUrl) {
-          // Guard: reject data URIs in afterUrl
-          if (input.afterUrl.startsWith("data:")) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "afterUrl must be an HTTPS URL, not a data URI." });
-          }
           afterUrl = input.afterUrl;
         } else if (ALLOWED_PIPELINE_TYPES.includes(input.serviceType)) {
           const { url: generatedAfterUrl, error: genError } = await generateImage({
-            prompt:
-              "Refinish this bathtub to look brand new with a glossy, smooth, professional white finish. Keep the same perspective, lighting, and surroundings. Remove stains, chips, discoloration, and wear. The result should look like a freshly refinished bathtub in a real residential bathroom.",
+            prompt: "", // ignored — pipeline uses vertical-specific prompts
+            serviceType: input.serviceType,
             originalImages: [{ url: input.beforeUrl }],
           });
           if (!generatedAfterUrl) {
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
-              message: `Image pipeline failed: ${genError || "no output"}. S3 storage is required.`,
+              message: `Image generation failed for ${input.serviceType}. Please retry or upload an after image manually.${genError ? ` (${genError})` : ""}`,
             });
           }
           afterUrl = generatedAfterUrl;
+          // Increment local file-based usage counter (in-app display).
+          // Stripe Billing Meters remains source of truth for billing — this counter is purely for UI/display.
+          // Wrapped in try/catch so counter write failures never break estimate save.
+          try {
+            incrementUsage(slug);
+          } catch (err) {
+            console.warn(`[Usage] Failed to increment counter for "${slug}":`, err);
+          }
         } else {
-          // Unsupported service type — skip pipeline, use before image as placeholder
-          console.log(`[estimates.create] Pipeline skipped for service type: ${input.serviceType}`);
-          afterUrl = input.beforeUrl;
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `No after image provided and service type "${input.serviceType}" has no pipeline configured.`,
+          });
         }
 
         // 2. Save estimate to DB
@@ -307,12 +183,14 @@ export const appRouter = router({
           service: input.service,
           serviceType: input.serviceType,
           price: input.price,
-          beforeUrl: input.beforeUrl,
+          beforeUrl: input.beforeUrl ?? "",
           afterUrl,
           transformationImageUrl: input.transformationImageUrl,
           transformationPrice: input.transformationPrice,
           bathroomSinkPrice: input.bathroomSinkPrice,
           kitchenSinkPrice: input.kitchenSinkPrice,
+          tileSurroundPrice: input.tileSurroundPrice,
+          otherBathroomPrice: input.otherBathroomPrice,
           bookingLink: input.bookingLink,
           calendarEmbed: input.calendarEmbed,
           slug,
@@ -323,19 +201,19 @@ export const appRouter = router({
           notes: input.notes,
           status: "New Lead",
           ghlContactId: input.ghlContactId,
-          companyName: input.companyName,
           companyLogoUrl: input.companyLogoUrl,
         });
         if (!estimate) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to save estimate" });
 
         // 3. Update GHL contact fields (fire-and-log — estimate is already saved)
         if (input.ghlContactId && ENV.ghlApiKey) {
-          const origin = ENV.publicUrl;
-          const estimatePageUrl = `${origin}/estimate/${slug}`;
+          const origin = ENV.publicUrl || `${ctx.req.protocol}://${ctx.req.get("host")}`;
+          const estimatePageUrl = `${origin.replace(/\/+$/, "")}/estimate/${slug}`;
           try {
+            const beforeIsHosted = input.beforeUrl && !input.beforeUrl.startsWith("data:");
             const customFields: Array<{ key: string; field_value: string }> = [
-              { key: "Bp_before_photo", field_value: input.beforeUrl },
-              { key: "Bp_after_photo",  field_value: afterUrl },
+              ...(beforeIsHosted ? [{ key: "Bp_before_photo", field_value: input.beforeUrl! }] : []),
+              ...(afterUrl ? [{ key: "Bp_after_photo",  field_value: afterUrl }] : []),
               { key: "Bp_estimate_url", field_value: estimatePageUrl },
               // State fields for GHL workflow automation
               { key: "bp_estimate_sent", field_value: "true" },
@@ -344,6 +222,9 @@ export const appRouter = router({
               { key: "bp_appointment_booked", field_value: "false" },
               { key: "bp_customer_name", field_value: input.name },
               ...(input.phone ? [{ key: "bp_customer_phone", field_value: input.phone }] : []),
+              { key: "bp_service_type", field_value: input.serviceType },
+              { key: "bp_quote_price", field_value: String(input.price) },
+              ...(input.transformationImageUrl ? [{ key: "bp_transformation_image_url", field_value: input.transformationImageUrl }] : []),
             ];
             if (input.companyLogoUrl) {
               customFields.push({ key: "bp_company_logo", field_value: input.companyLogoUrl });
@@ -376,8 +257,93 @@ export const appRouter = router({
           }
         }
 
+        // 4. Usage metering (non-blocking — estimate is already saved)
+        if (estimate.companyId) {
+          try {
+            const mapping = getCompanyStripeMapping(estimate.companyId);
+            if (mapping?.stripeSubscriptionId && mapping.stripeSubscriptionItemId && mapping.stripeCustomerId) {
+              const stripe = getStripe();
+              const sub = await stripe.subscriptions.retrieve(mapping.stripeSubscriptionId) as any;
+              const periodStart = sub.current_period_start as number;
+              const periodEnd = sub.current_period_end as number;
+
+              const { metered, sequenceNum } = meterEstimateIfNeeded(
+                estimate.companyId, estimate.id, slug, periodStart, periodEnd
+              );
+
+              if (metered) {
+                console.log(`[Usage] Estimate #${sequenceNum} "${slug}" exceeds free tier — reporting to Stripe`);
+                const recordId = await reportStripeUsageEvent(mapping.stripeSubscriptionItemId, slug, mapping.stripeCustomerId);
+                if (recordId) {
+                  markUsageEventReported(slug, recordId);
+                }
+              } else {
+                console.log(`[Usage] Estimate #${sequenceNum} "${slug}" — within free tier or already reported`);
+              }
+            }
+          } catch (meterErr: any) {
+            console.error(`[Usage] Metering failed for "${slug}" — estimate still saved:`, meterErr?.message);
+          }
+        }
+
         return { slug, estimate };
       }),
+
+    /**
+     * Read sink pricing from GHL sub-account Custom Values.
+     * Returns { bathroomSinkPrice, kitchenSinkPrice } — null when not configured.
+     */
+    sinkPricing: publicProcedure.query(async () => {
+      // Default sink prices — used when GHL custom values are not configured
+      const DEFAULT_BATHROOM_SINK = 199;
+      const DEFAULT_KITCHEN_SINK = 249;
+
+      if (!ENV.ghlApiKey || !ENV.ghlLocationId) {
+        return { bathroomSinkPrice: DEFAULT_BATHROOM_SINK, kitchenSinkPrice: DEFAULT_KITCHEN_SINK };
+      }
+
+      try {
+        const res = await fetch(
+          `https://services.leadconnectorhq.com/locations/${ENV.ghlLocationId}/customValues`,
+          {
+            headers: {
+              Authorization: `Bearer ${ENV.ghlApiKey}`,
+              Version: "2021-07-28",
+            },
+          }
+        );
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          console.warn(`[GHL] Custom values fetch failed (${res.status})${detail ? `: ${detail}` : ""}`);
+          return { bathroomSinkPrice: DEFAULT_BATHROOM_SINK, kitchenSinkPrice: DEFAULT_KITCHEN_SINK };
+        }
+
+        const data = await res.json();
+        const customValues: Array<{ name: string; fieldKey: string; value: string }> = data.customValues || [];
+
+        let bathroomSinkPrice: number | null = null;
+        let kitchenSinkPrice: number | null = null;
+
+        for (const cv of customValues) {
+          const key = (cv.fieldKey || cv.name || "").toLowerCase();
+          if (key.includes("bathroom") && key.includes("sink")) {
+            const parsed = parseInt(cv.value, 10);
+            if (!isNaN(parsed) && parsed > 0) bathroomSinkPrice = parsed;
+          } else if (key.includes("kitchen") && key.includes("sink")) {
+            const parsed = parseInt(cv.value, 10);
+            if (!isNaN(parsed) && parsed > 0) kitchenSinkPrice = parsed;
+          }
+        }
+
+        return {
+          bathroomSinkPrice: bathroomSinkPrice ?? DEFAULT_BATHROOM_SINK,
+          kitchenSinkPrice: kitchenSinkPrice ?? DEFAULT_KITCHEN_SINK,
+        };
+      } catch (err) {
+        console.warn("[GHL] Custom values fetch error:", err);
+        return { bathroomSinkPrice: DEFAULT_BATHROOM_SINK, kitchenSinkPrice: DEFAULT_KITCHEN_SINK };
+      }
+    }),
 
     /** List all estimates (for dashboard / all-jobs). */
     list: publicProcedure.query(() => getAllEstimates()),
@@ -454,47 +420,22 @@ export const appRouter = router({
           return { alreadyViewed: true };
         }
 
-        // Fire GHL alert for first view
-        if (estimate.ghlContactId && ENV.ghlApiKey) {
-          try {
-            const origin = ENV.publicUrl;
-            const estimatePageUrl = `${origin}/estimate/${estimate.slug}`;
-
-            const ghlBody: Record<string, unknown> = {
-              customFields: [
-                { key: "bp_estimate_viewed", field_value: "true" },
-                { key: "bp_estimate_viewed_at", field_value: new Date().toISOString() },
-                { key: "Bp_estimate_url", field_value: estimatePageUrl },
-              ],
-              tags: ["estimate_viewed"],
-            };
-
-            const ghlRes = await fetch(
-              `https://services.leadconnectorhq.com/contacts/${estimate.ghlContactId}`,
-              {
-                method: "PUT",
-                headers: {
-                  Authorization: `Bearer ${ENV.ghlApiKey}`,
-                  Version: "2021-07-28",
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(ghlBody),
-              }
-            );
-            if (!ghlRes.ok) {
-              const detail = await ghlRes.text().catch(() => "");
-              console.warn(`[GHL] Viewed alert failed (${ghlRes.status})${detail ? `: ${detail}` : ""}`);
-            } else {
-              console.log(`[GHL] Estimate viewed alert sent for ${estimate.name} (${estimate.slug})`);
-            }
-          } catch (err) {
-            console.warn("[GHL] Viewed alert error:", err);
-          }
-        } else {
-          console.log(`[Viewed] ${estimate.name} viewed estimate ${estimate.slug} (no GHL contact linked)`);
-        }
+        // Fire GHL form re-submission to update estimate_viewed=true (drives 5-touch branching)
+        await submitEstimateViewedToGHL(input.slug);
 
         return { alreadyViewed: false };
+      }),
+
+    /**
+     * POST estimate data to GHL form when admin clicks Send SMS or Send Email.
+     * Fire-and-forget — does not block the native SMS/Email handler.
+     * Idempotent: GHL deduplicates by phone/email.
+     */
+    notifyGHL: publicProcedure
+      .input(z.object({ slug: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const result = await submitEstimateToGHL(input.slug);
+        return result;
       }),
   }),
 });

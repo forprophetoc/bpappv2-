@@ -178,8 +178,6 @@ export default defineConfig({
       ".manusvm.computer",
       "estimates.bathtubpros.com",
       ".bathtubpros.com",
-      "esticlose.com",
-      ".esticlose.com",
       "localhost",
       "127.0.0.1",
     ],
