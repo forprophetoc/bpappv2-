@@ -25,7 +25,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AllJobs() {
   const utils = trpc.useUtils();
-  const { data: jobs } = trpc.estimates.list.useQuery();
+  const { data: jobs } = trpc.estimates.list.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
   const updateStatus = trpc.estimates.updateStatus.useMutation({
     onSuccess: () => utils.estimates.list.invalidate(),
   });
@@ -176,6 +178,7 @@ export default function AllJobs() {
                     value={status}
                     onChange={(e) => { e.preventDefault(); updateStatus.mutate({ id: job.id, status: e.target.value as any }); }}
                     onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className={`text-xs font-medium px-2 py-0.5 rounded-full border-none outline-none cursor-pointer ${statusClass}`}
                   >
                     {JOB_STATUSES.map((s) => (
