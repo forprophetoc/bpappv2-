@@ -28,6 +28,8 @@ export default function AllJobs() {
   const [, setLocation] = useLocation();
   const { data: jobs } = trpc.estimates.list.useQuery(undefined, {
     refetchInterval: 30000,
+    staleTime: 60000,
+    gcTime: 1800000,
   });
   const updateStatus = trpc.estimates.updateStatus.useMutation({
     onSuccess: () => utils.estimates.list.invalidate(),
