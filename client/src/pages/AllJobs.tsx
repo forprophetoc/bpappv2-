@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { FilePlus, Search, Phone, ChevronRight, DollarSign, Eye } from "lucide-react";
 
@@ -25,6 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AllJobs() {
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
   const { data: jobs } = trpc.estimates.list.useQuery(undefined, {
     refetchInterval: 30000,
   });
@@ -124,9 +125,12 @@ export default function AllJobs() {
             (job.bathroomSinkPrice || 0) + (job.kitchenSinkPrice || 0);
 
           return (
-            <Link
+            <div
               key={job.id}
-              href={`/estimate/${job.slug}`}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest("select")) return;
+                setLocation(`/estimate/${job.slug}`);
+              }}
               className="block bg-white rounded-xl border border-gray-200 shadow-sm px-4 sm:px-6 py-4 hover:shadow-md transition-shadow cursor-pointer"
             >
               <div className="flex items-center justify-between gap-3">
@@ -197,7 +201,7 @@ export default function AllJobs() {
                   </span>
                 ) : null}
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>
