@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -6,6 +7,8 @@ import {
   Calendar,
   Phone,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -17,11 +20,48 @@ const NAV_ITEMS = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-[#f0f4f8]">
-      {/* Sidebar */}
-      <aside className="w-[200px] bg-[#1a2332] flex flex-col shrink-0 fixed inset-y-0 left-0 z-30">
+      {/* Mobile hamburger button — visible only on mobile */}
+      <button
+        type="button"
+        onClick={() => setSidebarOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-30 p-2 rounded-lg bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Backdrop — visible only on mobile when sidebar is open, click to close */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar — slides in/out on mobile, always visible on desktop */}
+      <aside
+        className={`
+          w-[200px] bg-[#1a2332] flex flex-col shrink-0 fixed inset-y-0 left-0 z-40
+          transform transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0
+        `}
+      >
+        {/* Mobile close button — visible only on mobile */}
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(false)}
+          className="md:hidden absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#2a3a4e]"
+          aria-label="Close menu"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
         {/* Logo area */}
         <div className="px-4 py-5 flex flex-col items-center">
           <div className="w-16 h-16 bg-[#1a2332] rounded-full flex items-center justify-center border-2 border-[#2a3a4e] mb-1">
@@ -39,6 +79,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   active
                     ? "bg-[#2a3a4e] text-white"
@@ -77,8 +118,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="ml-[200px] flex-1 min-h-screen">
+      {/* Main content — full width on mobile (with top padding for hamburger), shifted on desktop */}
+      <main className="flex-1 min-h-screen pt-14 md:pt-0 md:ml-[200px]">
         {children}
       </main>
     </div>
