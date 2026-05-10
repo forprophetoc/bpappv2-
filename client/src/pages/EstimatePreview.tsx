@@ -512,7 +512,7 @@ function EstimatePageContent({ estimate }: { estimate: TestEstimate }) {
           </div>
           {(BOOKING_LINKS_BY_DURATION[estimate.duration] || estimate.bookingLink) ? (
             <a
-              href={buildBookingUrl(estimate.duration, { firstName: estimate.firstName, lastName: null, email: null, phone: null }, estimate.bookingLink || "")}
+              href={buildBookingUrl(estimate.duration, { firstName: estimate.firstName, lastName: null, email: null, phone: null, service: estimate.serviceType, price: estimate.price }, estimate.bookingLink || "")}
               target="_blank"
               rel="noreferrer"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-full text-sm transition-colors shadow"
@@ -622,7 +622,7 @@ function EstimatePageContent({ estimate }: { estimate: TestEstimate }) {
         {(BOOKING_LINKS_BY_DURATION[estimate.duration] || estimate.bookingLink) ? (
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
             <a
-              href={buildBookingUrl(estimate.duration, { firstName: estimate.firstName, lastName: null, email: null, phone: null }, estimate.bookingLink || "")}
+              href={buildBookingUrl(estimate.duration, { firstName: estimate.firstName, lastName: null, email: null, phone: null, service: estimate.serviceType, price: estimate.price }, estimate.bookingLink || "")}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-8 py-3 rounded-full text-base hover:bg-blue-50 transition-colors shadow"

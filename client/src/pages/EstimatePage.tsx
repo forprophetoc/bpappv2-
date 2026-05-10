@@ -625,6 +625,8 @@ function BookingButton({
     lastName: string | null;
     email: string | null;
     phone?: string | null;
+    serviceType: string;
+    price: number;
   };
 }) {
   const bookingUrl = buildBookingUrl(
@@ -634,6 +636,8 @@ function BookingButton({
       lastName: estimate.lastName,
       email: estimate.email,
       phone: estimate.phone ?? null,
+      service: estimate.serviceType,
+      price: estimate.price,
     },
     estimate.bookingLink || COMPANY.bookingLink,
   );

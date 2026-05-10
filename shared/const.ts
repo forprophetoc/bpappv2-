@@ -27,11 +27,13 @@ export interface BookingPrefillInfo {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
+  service?: string | null;
+  price?: number | null;
 }
 
 /**
  * Build the booking URL for a given service type, with customer info appended
- * as query parameters so GHL's calendar widget can pre-fill the form.
+ * as query parameters so the calendar widget can pre-fill the form.
  * If no customer info is provided, returns the bare booking URL.
  *
  * Returns empty string if no booking URL is configured for the serviceType.
@@ -45,8 +47,10 @@ export function buildBookingUrl(
   if (!base) return "";
 
   const params = new URLSearchParams();
-  if (info.firstName) params.set("first_name", info.firstName);
-  if (info.lastName) params.set("last_name", info.lastName);
+  if (info.service) params.set("service", info.service);
+  if (info.price !== null && info.price !== undefined) params.set("price", String(info.price));
+  if (info.firstName) params.set("firstName", info.firstName);
+  if (info.lastName) params.set("lastName", info.lastName);
   if (info.email) params.set("email", info.email);
   if (info.phone) params.set("phone", info.phone);
 
