@@ -12,11 +12,11 @@ export const NOT_ADMIN_ERR_MSG = 'You do not have required permission (10002)';
  * 4-hr rounds UP to 5-hr; 6-hr rounds UP to Full Day.
  */
 export const BOOKING_LINKS_BY_DURATION: Record<string, string> = {
-  "3 Hours": "https://api.leadconnectorhq.com/widget/booking/vxFedDuf9hfn8fj8AOPQ",
-  "4 Hours": "https://api.leadconnectorhq.com/widget/booking/jQwmqF4YWnV314EUX5Zj",
-  "5 Hours": "https://api.leadconnectorhq.com/widget/booking/jQwmqF4YWnV314EUX5Zj",
-  "6 Hours": "https://api.leadconnectorhq.com/widget/booking/l8249GU0QFWLEjS2zG96",
-  "Full Day": "https://api.leadconnectorhq.com/widget/booking/l8249GU0QFWLEjS2zG96",
+  "3 Hours": "https://calendar.bathtubpros.com",
+  "4 Hours": "https://calendar.bathtubpros.com",
+  "5 Hours": "https://calendar.bathtubpros.com",
+  "6 Hours": "https://calendar.bathtubpros.com",
+  "Full Day": "https://calendar.bathtubpros.com",
 };
 
 /**
