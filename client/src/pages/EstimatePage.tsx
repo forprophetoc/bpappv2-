@@ -588,6 +588,8 @@ function EstimateView({
                   if (estimate.email) params.set("email", estimate.email);
                   const _phone = (estimate as any).phone;
                   if (_phone) params.set("phone", _phone);
+                  if (estimate.beforeUrl) params.set("beforeImage", estimate.beforeUrl);
+                  if (estimate.afterUrl) params.set("afterImage", estimate.afterUrl);
                   return `https://calendar.bathtubpros.com${params.toString() ? `?${params.toString()}` : ""}`;
                 })()}
                 target="_blank"
@@ -627,6 +629,8 @@ function BookingButton({
     phone?: string | null;
     serviceType: string;
     price: number;
+    beforeUrl: string;
+    afterUrl: string;
   };
 }) {
   const bookingUrl = buildBookingUrl(
@@ -638,6 +642,8 @@ function BookingButton({
       phone: estimate.phone ?? null,
       service: estimate.serviceType,
       price: estimate.price,
+      beforeImage: estimate.beforeUrl,
+      afterImage: estimate.afterUrl,
     },
     estimate.bookingLink || COMPANY.bookingLink,
   );

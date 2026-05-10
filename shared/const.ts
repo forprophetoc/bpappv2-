@@ -29,6 +29,8 @@ export interface BookingPrefillInfo {
   phone?: string | null;
   service?: string | null;
   price?: number | null;
+  beforeImage?: string | null;
+  afterImage?: string | null;
 }
 
 /**
@@ -53,6 +55,8 @@ export function buildBookingUrl(
   if (info.lastName) params.set("lastName", info.lastName);
   if (info.email) params.set("email", info.email);
   if (info.phone) params.set("phone", info.phone);
+  if (info.beforeImage) params.set("beforeImage", info.beforeImage);
+  if (info.afterImage) params.set("afterImage", info.afterImage);
 
   const query = params.toString();
   return query ? `${base}?${query}` : base;
