@@ -579,7 +579,7 @@ function EstimateView({
           {(BOOKING_LINKS_BY_DURATION[estimate.duration ?? ""] || estimate.bookingLink || COMPANY.bookingLink) ? (
             <div className="bg-white p-8 flex justify-center">
               <a
-                href={buildBookingUrl(estimate.serviceType, { firstName: estimate.firstName, lastName: estimate.lastName, email: estimate.email, phone: (estimate as any).phone ?? null }, estimate.bookingLink || COMPANY.bookingLink || "#")}
+                href={buildBookingUrl(estimate.duration ?? "", { firstName: estimate.firstName, lastName: estimate.lastName, email: estimate.email, phone: (estimate as any).phone ?? null }, estimate.bookingLink || COMPANY.bookingLink || "#")}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-full text-base transition-colors shadow-md inline-block text-center"
