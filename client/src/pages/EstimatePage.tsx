@@ -4,7 +4,7 @@ import { useParams } from "wouter";
 import {
   Loader2,
   Phone,
-  Calendar,
+  MessageCircle,
   CheckCircle,
   Star,
   ShieldCheck,
@@ -16,13 +16,13 @@ import LiveCounter from "@/components/estimate/LiveCounter";
 import PackageCards from "@/components/estimate/PackageCards";
 import UpsellMatrix from "@/components/estimate/UpsellMatrix";
 import PlanModal from "@/components/estimate/PlanModal";
-import { BOOKING_LINKS_BY_DURATION, buildBookingUrl } from "@shared/const";
 
 // ── Hardcoded company config (backported from V4 bathtub-pros config) ──
 
 const COMPANY = {
   name: "Bathtub Pros",
   phone: "(239) 307-7945",
+  phoneTel: "2393077945",
   phoneDisplay: "(239) 307-7945",
   logoUrl: "https://lirp.cdn-website.com/fa4035d5/dms3rep/multi/opt/original-logos-small-640w.jpg",
   bookingLink: "https://app.squareup.com/appointments/buyer/widget/3za2737yf8u5y8/L09VQVGB6SQB7",
@@ -520,7 +520,23 @@ function EstimateView({
               ${totalPrice.toLocaleString()}
             </p>
           </div>
-          <BookingButton estimate={estimate} />
+          <p className="text-sm text-gray-300 font-semibold">Ready to schedule?</p>
+          <div className="flex flex-col sm:flex-row gap-2.5 w-full">
+            <a
+              href={`sms:${COMPANY.phoneTel}?&body=${encodeURIComponent("I'd like to schedule my transformation")}`}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-full text-base transition-colors shadow w-full text-center flex items-center justify-center gap-2"
+            >
+              <MessageCircle className="h-5 w-5" />
+              Text Us to Schedule
+            </a>
+            <a
+              href={`tel:${COMPANY.phoneTel}`}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-full text-base transition-colors shadow w-full text-center flex items-center justify-center gap-2"
+            >
+              <Phone className="h-5 w-5" />
+              Call Us to Schedule
+            </a>
+          </div>
         </div>
       </section>
 
@@ -566,44 +582,31 @@ function EstimateView({
         </div>
       </section>
 
-      {/* ── EMBEDDED BOOKING CALENDAR ── */}
+      {/* ── SCHEDULE CTA ── */}
       <section id="booking-calendar" className="px-4 py-5">
         <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="bg-green-500 py-3 px-4 text-center">
-            <h2 className="text-lg font-bold text-white flex items-center justify-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Book My Appointment
+            <h2 className="text-lg font-bold text-white">
+              Ready to Schedule?
             </h2>
-            <p className="text-green-100 text-xs mt-0.5">Select a date and time that works for you</p>
+            <p className="text-green-100 text-xs mt-0.5">Text or call us — we'll get you on the calendar</p>
           </div>
-          {(BOOKING_LINKS_BY_DURATION[estimate.duration ?? ""] || estimate.bookingLink || COMPANY.bookingLink) ? (
-            <div className="bg-white p-8 flex justify-center">
-              <a
-                href={(() => {
-                  const params = new URLSearchParams();
-                  if (estimate.serviceType) params.set("service", estimate.serviceType);
-                  if (estimate.price) params.set("price", String(estimate.price));
-                  if (estimate.firstName) params.set("firstName", estimate.firstName);
-                  if (estimate.lastName) params.set("lastName", estimate.lastName);
-                  if (estimate.email) params.set("email", estimate.email);
-                  const _phone = (estimate as any).phone;
-                  if (_phone) params.set("phone", _phone);
-                  if (estimate.beforeUrl) params.set("beforeImage", estimate.beforeUrl);
-                  if (estimate.afterUrl) params.set("afterImage", estimate.afterUrl);
-                  return `https://calendar.bathtubpros.com${params.toString() ? `?${params.toString()}` : ""}`;
-                })()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-full text-base transition-colors shadow-md inline-block text-center"
-              >
-                Book My Appointment
-              </a>
-            </div>
-          ) : (
-            <div className="bg-white p-8 text-center text-gray-400 text-sm">
-              Booking calendar not configured
-            </div>
-          )}
+          <div className="bg-white p-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href={`sms:${COMPANY.phoneTel}?&body=${encodeURIComponent("I'd like to schedule my transformation")}`}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 py-4 rounded-full text-base transition-colors shadow-md text-center flex items-center justify-center gap-2"
+            >
+              <MessageCircle className="h-5 w-5" />
+              Text Us to Schedule
+            </a>
+            <a
+              href={`tel:${COMPANY.phoneTel}`}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-full text-base transition-colors shadow-md text-center flex items-center justify-center gap-2"
+            >
+              <Phone className="h-5 w-5" />
+              Call Us to Schedule
+            </a>
+          </div>
         </div>
       </section>
 
@@ -614,49 +617,5 @@ function EstimateView({
         </p>
       </section>
     </div>
-  );
-}
-
-function BookingButton({
-  estimate,
-}: {
-  estimate: {
-    bookingLink: string | null;
-    duration: string | null;
-    firstName: string | null;
-    lastName: string | null;
-    email: string | null;
-    phone?: string | null;
-    serviceType: string;
-    price: number;
-    beforeUrl: string;
-    afterUrl: string;
-  };
-}) {
-  const bookingUrl = buildBookingUrl(
-    estimate.duration ?? "",
-    {
-      firstName: estimate.firstName,
-      lastName: estimate.lastName,
-      email: estimate.email,
-      phone: estimate.phone ?? null,
-      service: estimate.serviceType,
-      price: estimate.price,
-      beforeImage: estimate.beforeUrl,
-      afterImage: estimate.afterUrl,
-    },
-    estimate.bookingLink || COMPANY.bookingLink,
-  );
-  if (!bookingUrl) return null;
-
-  return (
-    <a
-      href={bookingUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-full text-base transition-colors shadow w-full text-center block cursor-pointer inline-block"
-    >
-      Book My Appointment
-    </a>
   );
 }
