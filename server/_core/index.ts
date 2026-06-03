@@ -5,6 +5,7 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerGhlWebhook } from "./ghlWebhook";
+import { registerReviewRoutes } from "./reviewRoute";
 import { registerStripeWebhookRoutes } from "./stripeWebhook";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
@@ -43,6 +44,8 @@ async function startServer() {
   registerOAuthRoutes(app);
   // GHL inbound webhook — POST /api/ghl/webhook
   registerGhlWebhook(app);
+  // Review webhook — POST /api/review
+  registerReviewRoutes(app);
   // tRPC API
   app.use(
     "/api/trpc",

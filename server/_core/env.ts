@@ -9,6 +9,7 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   publicUrl: process.env.VITE_PUBLIC_URL ?? "",
   ghlApiKey: process.env.GHL_API_KEY ?? "",
+  reviewWebhookToken: process.env.REVIEW_WEBHOOK_TOKEN ?? "",
   ghlLocationId: process.env.GHL_LOCATION_ID ?? "",
   ghlWebhookUrl: process.env.GHL_WEBHOOK_URL ?? "",
   // OpenAI (legacy — kept for reference but no longer used for image generation)
