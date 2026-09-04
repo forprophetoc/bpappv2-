@@ -240,6 +240,7 @@ export default function NewEstimate() {
       }
 
       utils.estimates.list.invalidate();
+      utils.estimates.dashboard.invalidate();
     } catch (err: any) {
       const errMsg = err?.message || "Something went wrong";
       console.error("[NewEstimate] Error:", errMsg);

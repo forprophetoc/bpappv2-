@@ -32,7 +32,10 @@ export default function AllJobs() {
     gcTime: 1800000,
   });
   const updateStatus = trpc.estimates.updateStatus.useMutation({
-    onSuccess: () => utils.estimates.list.invalidate(),
+    onSuccess: () => {
+      utils.estimates.list.invalidate();
+      utils.estimates.dashboard.invalidate();
+    },
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");

@@ -1,6 +1,6 @@
 import path from "path";
 import Database from "better-sqlite3";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { companies, estimates, usageEvents, InsertCompany, InsertEstimate, InsertUser, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -126,6 +126,19 @@ function runV3Migration(sqlite: InstanceType<typeof Database>) {
 
   // Backfill insertedAt for existing rows that have NULL
   sqlite.exec(`UPDATE estimates SET insertedAt = createdAt WHERE insertedAt IS NULL`);
+
+  // ── Perf indexes (idempotent) ──
+  // The estimates list orders by createdAt DESC and the dashboard counts by
+  // status; without these SQLite does a full SCAN + TEMP B-TREE sort on every
+  // load, which blocks the single synchronous better-sqlite3 process. Mirrors
+  // drizzle/0002_add_estimate_indexes.sql — this runtime guard is what actually
+  // installs the indexes on the production DB (runtime uses this, not drizzle
+  // migrate). CREATE INDEX IF NOT EXISTS is safe to run every boot.
+  sqlite.exec(`
+    CREATE INDEX IF NOT EXISTS idx_estimates_createdAt ON estimates (createdAt);
+    CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates (status);
+    CREATE INDEX IF NOT EXISTS idx_estimates_ghlContactId ON estimates (ghlContactId);
+  `);
 }
 
 // Lazily create the drizzle instance so the app starts even without DATABASE_URL.
@@ -316,11 +329,98 @@ export function getEstimateBySlug(slug: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-/** Fetch all estimates, newest first. */
+/** Fetch all estimates, newest first. Full row + full table — prefer the
+ *  projected getEstimatesList / getDashboardData for UI paths. */
 export function getAllEstimates() {
   const db = getDb();
   if (!db) throw new Error("Database not available");
   return db.select().from(estimates).orderBy(desc(estimates.createdAt)).all();
+}
+
+/**
+ * Columns the dashboard / all-jobs list views actually render or search on.
+ * Deliberately excludes the heavy fields (beforeUrl/afterUrl/
+ * transformationImageUrl/calendarEmbed/notes) — beforeUrl can be a base64 data
+ * URL and calendarEmbed is raw HTML, so selecting them bloats the list payload
+ * with data the list never displays.
+ */
+const LIST_COLUMNS = {
+  id: estimates.id,
+  slug: estimates.slug,
+  name: estimates.name,
+  firstName: estimates.firstName,
+  lastName: estimates.lastName,
+  service: estimates.service,
+  duration: estimates.duration,
+  price: estimates.price,
+  status: estimates.status,
+  viewedAt: estimates.viewedAt,
+  phone: estimates.phone,
+  address: estimates.address,
+  email: estimates.email,
+  bathroomSinkPrice: estimates.bathroomSinkPrice,
+  kitchenSinkPrice: estimates.kitchenSinkPrice,
+} as const;
+
+/**
+ * Fetch a bounded, column-projected page of estimates for the list views,
+ * newest first. Uses the createdAt index (no TEMP B-TREE) and only the columns
+ * the UI needs, so the payload stays small as the table grows.
+ */
+export function getEstimatesList(opts?: { limit?: number; offset?: number }) {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+  const limit = opts?.limit ?? 500;
+  const offset = opts?.offset ?? 0;
+  return db
+    .select(LIST_COLUMNS)
+    .from(estimates)
+    .orderBy(desc(estimates.createdAt))
+    .limit(limit)
+    .offset(offset)
+    .all();
+}
+
+/**
+ * Dashboard payload: per-status counts (cheap COUNT(*) GROUP BY on the status
+ * index) plus the N most-recent projected rows. Replaces pulling every column
+ * of every row just to compute four numbers and show five rows.
+ */
+export function getDashboardData(recentLimit = 5) {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+
+  const countRows = db
+    .select({ status: estimates.status, count: sql<number>`COUNT(*)` })
+    .from(estimates)
+    .groupBy(estimates.status)
+    .all() as Array<{ status: string | null; count: number }>;
+
+  const byStatus = (s: string) => countRows.find((r) => r.status === s)?.count ?? 0;
+  const counts = {
+    newLeads: byStatus("New Lead"),
+    estimatesSent: byStatus("Estimate Sent"),
+    // Dashboard treats both legacy "Booked" and "Appointment Booked" as booked.
+    booked: byStatus("Appointment Booked") + byStatus("Booked"),
+    completed: byStatus("Completed"),
+  };
+
+  const recent = db
+    .select(LIST_COLUMNS)
+    .from(estimates)
+    .orderBy(desc(estimates.createdAt))
+    .limit(recentLimit)
+    .all();
+
+  return { counts, recent };
+}
+
+/** Fetch a single estimate by primary key. Returns undefined if not found. */
+export function getEstimateById(id: number) {
+  const db = getDb();
+  if (!db) throw new Error("Database not available");
+  const result = db.select().from(estimates).where(eq(estimates.id, id)).limit(1).all();
+  return result.length > 0 ? result[0] : undefined;
 }
 
 /** Update the status of an estimate by id. */

@@ -6,7 +6,18 @@ import superjson from "superjson";
 import App from "./App";
 import "./index.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Prod lag fix: the bare client refetched every query on every window
+      // focus/remount, re-paying the estimates.list cost each time. Serve cached
+      // data for 30s and don't refetch just because the tab regained focus.
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 queryClient.getQueryCache().subscribe(event => {
   if (event.type === "updated" && event.action.type === "error") {

@@ -11,7 +11,7 @@ import { getStripe } from "./_core/stripe";
 import { reportStripeUsageEvent } from "./_core/stripe";
 import { submitEstimateToGHL, submitEstimateViewedToGHL } from "./_core/ghlNotify";
 import { incrementUsage } from "./usage";
-import { getAllEstimates, getCompanyStripeMapping, getEstimateBySlug, markEstimateViewed, markUsageEventReported, meterEstimateIfNeeded, nameToSlug, updateEstimateStatus, upsertEstimate } from "./db";
+import { getCompanyStripeMapping, getDashboardData, getEstimateById, getEstimateBySlug, getEstimatesList, markEstimateViewed, markUsageEventReported, meterEstimateIfNeeded, nameToSlug, updateEstimateStatus, upsertEstimate } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -345,8 +345,28 @@ export const appRouter = router({
       }
     }),
 
-    /** List all estimates (for dashboard / all-jobs). */
-    list: publicProcedure.query(() => getAllEstimates()),
+    /**
+     * List estimates for the all-jobs view — bounded and column-projected.
+     * Returns newest-first, only the columns the list renders/searches, capped
+     * so a growing table can't reproduce the full-table-scan lag.
+     */
+    list: publicProcedure
+      .input(
+        z
+          .object({
+            limit: z.number().int().positive().max(1000).optional(),
+            offset: z.number().int().nonnegative().optional(),
+          })
+          .optional()
+      )
+      .query(({ input }) => getEstimatesList(input)),
+
+    /**
+     * Dashboard payload — status counts + the 5 most-recent rows only.
+     * Avoids shipping every column of every estimate just to render four
+     * counters and a short recent-jobs list.
+     */
+    dashboard: publicProcedure.query(() => getDashboardData()),
 
     /** Update the status of an estimate. */
     updateStatus: publicProcedure
@@ -359,8 +379,7 @@ export const appRouter = router({
 
         // Fire GHL update when status changes to Appointment Booked
         if (input.status === "Appointment Booked" && ENV.ghlApiKey) {
-          const allEstimates = getAllEstimates();
-          const est = allEstimates.find((e) => e.id === input.id);
+          const est = getEstimateById(input.id);
           if (est?.ghlContactId) {
             try {
               const ghlBody: Record<string, unknown> = {

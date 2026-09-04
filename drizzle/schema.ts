@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const companies = sqliteTable("companies", {
@@ -86,7 +86,15 @@ export const estimates = sqliteTable("estimates", {
   updatedAt: integer("updatedAt", { mode: "timestamp" })
     .default(sql`(unixepoch())`)
     .notNull(),
-});
+}, (t) => ({
+  // Perf: the dashboard/all-jobs list orders by createdAt DESC — without this
+  // index SQLite does a full SCAN + a TEMP B-TREE sort on every load.
+  createdAtIdx: index("idx_estimates_createdAt").on(t.createdAt),
+  // Perf: dashboard status counts (COUNT(*) ... GROUP BY status).
+  statusIdx: index("idx_estimates_status").on(t.status),
+  // Perf: GHL contact lookups.
+  ghlContactIdIdx: index("idx_estimates_ghlContactId").on(t.ghlContactId),
+}));
 
 export type Estimate = typeof estimates.$inferSelect;
 export type InsertEstimate = typeof estimates.$inferInsert;

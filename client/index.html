@@ -18,10 +18,12 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script
-      defer
-      src="%VITE_ANALYTICS_ENDPOINT%/umami"
-      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+    <!--
+      Analytics beacon removed: VITE_ANALYTICS_ENDPOINT is not configured in the
+      production build, so the %VITE_ANALYTICS_ENDPOINT% placeholder shipped
+      un-substituted and every page load hit GET /%VITE_ANALYTICS_ENDPOINT%/umami
+      → 400. Re-add a properly-substituted script here if/when analytics is set up.
+    -->
   </body>
 
 </html>

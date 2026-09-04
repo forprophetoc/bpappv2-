@@ -27,17 +27,19 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function Dashboard() {
   const utils = trpc.useUtils();
-  const { data: jobs } = trpc.estimates.list.useQuery();
+  const { data } = trpc.estimates.dashboard.useQuery();
   const updateStatus = trpc.estimates.updateStatus.useMutation({
-    onSuccess: () => utils.estimates.list.invalidate(),
+    onSuccess: () => {
+      utils.estimates.dashboard.invalidate();
+      utils.estimates.list.invalidate();
+    },
   });
 
-  const allJobs = jobs ?? [];
-  const newLeads = allJobs.filter((j) => j.status === "New Lead").length;
-  const estimatesSent = allJobs.filter((j) => j.status === "Estimate Sent").length;
-  const booked = allJobs.filter((j) => j.status === "Appointment Booked" || j.status === "Booked").length;
-  const completed = allJobs.filter((j) => j.status === "Completed").length;
-  const recentJobs = allJobs.slice(0, 5);
+  const newLeads = data?.counts.newLeads ?? 0;
+  const estimatesSent = data?.counts.estimatesSent ?? 0;
+  const booked = data?.counts.booked ?? 0;
+  const completed = data?.counts.completed ?? 0;
+  const recentJobs = data?.recent ?? [];
 
   return (
     <div className="p-4 sm:p-8">
